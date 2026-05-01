@@ -1,11 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Team Task Manager</title>
+  <title>TaskFlow</title>
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
   <style>
     body {
-      font-family: Arial;
-      background: #0b0f1a;
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #0b0f1a, #1a1f35);
       color: white;
       display: flex;
       justify-content: center;
@@ -13,29 +18,47 @@
       height: 100vh;
     }
 
-    .box {
+    .container {
+      width: 380px;
       background: #141a2a;
       padding: 25px;
-      border-radius: 10px;
-      width: 350px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
     }
 
-    input, select, button {
+    h2 {
+      text-align: center;
+      margin-bottom: 15px;
+    }
+
+    input, select {
       width: 100%;
       padding: 10px;
       margin: 8px 0;
-      border-radius: 5px;
+      border-radius: 6px;
       border: none;
+      outline: none;
     }
 
     button {
-      background: purple;
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      border: none;
+      border-radius: 6px;
+      background: linear-gradient(90deg, #7b2ff7, #f107a3);
       color: white;
       cursor: pointer;
+      font-weight: 600;
+    }
+
+    button:hover {
+      opacity: 0.9;
     }
 
     .tabs {
       display: flex;
+      margin-bottom: 10px;
     }
 
     .tabs button {
@@ -44,39 +67,56 @@
     }
 
     .active {
-      background: purple;
+      background: linear-gradient(90deg, #7b2ff7, #f107a3);
     }
 
     #dashboard {
       display: none;
     }
 
+    .task-card {
+      background: #1f253d;
+      padding: 10px;
+      margin-top: 8px;
+      border-radius: 6px;
+    }
+
     #message {
       margin-top: 10px;
-      color: yellow;
-      white-space: pre-wrap;
     }
+
+    .welcome {
+      text-align: center;
+      color: #00ffcc;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+
   </style>
 </head>
 
 <body>
 
-<div class="box">
+<div class="container">
 
-  <!-- LOGIN / SIGNUP -->
+  <!-- AUTH -->
   <div id="auth">
+
+    <h2>TaskFlow</h2>
 
     <div class="tabs">
       <button id="loginTab" class="active" onclick="showLogin()">Login</button>
       <button id="signupTab" onclick="showSignup()">Sign Up</button>
     </div>
 
+    <!-- LOGIN -->
     <div id="loginForm">
       <input type="email" id="loginEmail" placeholder="Email">
       <input type="password" id="loginPassword" placeholder="Password">
       <button onclick="login()">Login</button>
     </div>
 
+    <!-- SIGNUP -->
     <div id="signupForm" style="display:none;">
       <input type="text" id="name" placeholder="Full Name">
       <input type="email" id="email" placeholder="Email">
@@ -94,13 +134,21 @@
 
   <!-- DASHBOARD -->
   <div id="dashboard">
-    <h3>Dashboard</h3>
 
+    <h2>Dashboard</h2>
+
+    <input id="projectName" placeholder="Project name">
     <button onclick="createProject()">Create Project</button>
+
+    <input id="taskTitle" placeholder="Task title">
     <button onclick="createTask()">Create Task</button>
+
     <button onclick="loadTasks()">View Tasks</button>
 
+    <div class="welcome" id="welcome"></div>
+
     <div id="message"></div>
+
   </div>
 
 </div>
@@ -109,27 +157,27 @@
 
 const BASE_URL = "https://web-production-4c997.up.railway.app";
 
-// ---------- UI SWITCH ----------
+// SWITCH
 function showLogin() {
-  document.getElementById("loginForm").style.display = "block";
-  document.getElementById("signupForm").style.display = "none";
+  loginForm.style.display = "block";
+  signupForm.style.display = "none";
 }
 
 function showSignup() {
-  document.getElementById("loginForm").style.display = "none";
-  document.getElementById("signupForm").style.display = "block";
+  loginForm.style.display = "none";
+  signupForm.style.display = "block";
 }
 
-// ---------- SIGNUP ----------
+// SIGNUP
 async function signup() {
   const res = await fetch(BASE_URL + "/register", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
-      name: document.getElementById("name").value,
-      email: document.getElementById("email").value,
-      password: document.getElementById("password").value,
-      role: document.getElementById("role").value
+      name: name.value,
+      email: email.value,
+      password: password.value,
+      role: role.value
     })
   });
 
@@ -137,14 +185,14 @@ async function signup() {
   alert(data.message);
 }
 
-// ---------- LOGIN ----------
+// LOGIN
 async function login() {
   const res = await fetch(BASE_URL + "/login", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
-      email: document.getElementById("loginEmail").value,
-      password: document.getElementById("loginPassword").value
+      email: loginEmail.value,
+      password: loginPassword.value
     })
   });
 
@@ -152,31 +200,25 @@ async function login() {
 
   if (data.message === "Login successful") {
 
-    // STORE USER
     localStorage.setItem("userId", data.user.id);
-    localStorage.setItem("role", data.user.role);
 
-    // SWITCH UI
-    document.getElementById("auth").style.display = "none";
-    document.getElementById("dashboard").style.display = "block";
+    auth.style.display = "none";
+    dashboard.style.display = "block";
 
-    document.getElementById("message").innerText =
-      "Welcome " + data.user.name;
+    welcome.innerText = "Welcome " + data.user.name;
 
   } else {
     alert(data.message);
   }
 }
 
-// ---------- PROJECT ----------
+// CREATE PROJECT
 async function createProject() {
-  const name = prompt("Enter project name");
-
   await fetch(BASE_URL + "/projects", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
-      name: name,
+      name: projectName.value,
       owner_id: localStorage.getItem("userId")
     })
   });
@@ -184,15 +226,13 @@ async function createProject() {
   alert("Project created");
 }
 
-// ---------- TASK ----------
+// CREATE TASK
 async function createTask() {
-  const title = prompt("Enter task");
-
   await fetch(BASE_URL + "/tasks", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
-      title: title,
+      title: taskTitle.value,
       project_id: 1,
       assigned_to: localStorage.getItem("userId")
     })
@@ -201,18 +241,23 @@ async function createTask() {
   alert("Task created");
 }
 
-// ---------- LOAD TASKS ----------
+// LOAD TASKS (CARD UI)
 async function loadTasks() {
   const res = await fetch(BASE_URL + "/tasks/" + localStorage.getItem("userId"));
   const data = await res.json();
 
-  let output = "Your Tasks:\n\n";
+  let output = "";
 
   data.forEach(task => {
-    output += task.title + " (" + task.status + ")\n";
+    output += `
+      <div class="task-card">
+        <b>${task.title}</b><br>
+        Status: ${task.status}
+      </div>
+    `;
   });
 
-  document.getElementById("message").innerText = output;
+  message.innerHTML = output;
 }
 
 </script>
