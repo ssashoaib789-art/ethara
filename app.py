@@ -1,141 +1,97 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-import os
-import jwt
-import datetime
 import bcrypt
+import os
 
 app = Flask(__name__)
 CORS(app)
 
-# 🔐 Secret key
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'secret123')
-
-# 🗄️ Database config (PostgreSQL for Railway)
-database_url = os.environ.get('DATABASE_URL')
-
-if database_url:
-    database_url = database_url.replace("postgres://", "postgresql://")
-
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///taskmanager.db'
+# ✅ Use Railway Postgres automatically
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# ================= MODELS =================
-
+# ✅ User model
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100))
-    email = db.Column(db.String(100), unique=True)
+    email = db.Column(db.String(120), unique=True)
     password = db.Column(db.String(200))
+    role = db.Column(db.String(50))
 
-class Project(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100))
-    owner_id = db.Column(db.Integer)
+# ✅ Create tables (important)
+with app.app_context():
+    db.create_all()
 
-class Task(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200))
-    status = db.Column(db.String(50))
-    project_id = db.Column(db.Integer)
-    assigned_to = db.Column(db.Integer)
 
-# ================= ROUTES =================
+# ========================
+# ROUTES
+# ========================
 
-# ✅ Serve frontend
-@app.route('/')
+@app.route("/")
 def home():
-    return send_from_directory('frontend', 'index.html')
+    return "Backend is running 🚀"
 
 
-# 🔐 Register
-@app.route('/register', methods=['POST'])
+# ✅ REGISTER
+@app.route("/register", methods=["POST"])
 def register():
-    data = request.json
-    hashed_pw = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt())
+    data = request.get_json()
+
+    name = data.get("name")
+    email = data.get("email")
+    password = data.get("password")
+    role = data.get("role")
+
+    if not name or not email or not password:
+        return jsonify({"message": "Missing fields"}), 400
+
+    # check existing user
+    if User.query.filter_by(email=email).first():
+        return jsonify({"message": "User already exists"}), 400
+
+    hashed_pw = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
 
     user = User(
-        username=data['username'],
-        email=data['email'],
-        password=hashed_pw
+        username=name,
+        email=email,
+        password=hashed_pw.decode("utf-8"),
+        role=role
     )
 
     db.session.add(user)
     db.session.commit()
 
-    return jsonify({"message": "User registered"})
+    return jsonify({"message": "User registered successfully"}), 201
 
 
-# 🔑 Login
-@app.route('/login', methods=['POST'])
+# ✅ LOGIN
+@app.route("/login", methods=["POST"])
 def login():
-    data = request.json
-    user = User.query.filter_by(email=data['email']).first()
+    data = request.get_json()
 
-    if user and bcrypt.checkpw(data['password'].encode('utf-8'), user.password):
-        token = jwt.encode({
-            'user_id': user.id,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
-        }, app.config['SECRET_KEY'], algorithm='HS256')
+    email = data.get("email")
+    password = data.get("password")
 
-        return jsonify({"token": token})
+    user = User.query.filter_by(email=email).first()
+
+    if user and bcrypt.checkpw(password.encode("utf-8"), user.password.encode("utf-8")):
+        return jsonify({
+            "message": "Login successful",
+            "user": {
+                "name": user.username,
+                "email": user.email,
+                "role": user.role
+            }
+        })
 
     return jsonify({"message": "Invalid credentials"}), 401
 
 
-# 📁 Create Project
-@app.route('/projects', methods=['POST'])
-def create_project():
-    data = request.json
-    project = Project(name=data['name'], owner_id=data['owner_id'])
-
-    db.session.add(project)
-    db.session.commit()
-
-    return jsonify({"message": "Project created"})
-
-
-# 📋 Add Task
-@app.route('/tasks', methods=['POST'])
-def create_task():
-    data = request.json
-    task = Task(
-        title=data['title'],
-        status="pending",
-        project_id=data['project_id'],
-        assigned_to=data['assigned_to']
-    )
-
-    db.session.add(task)
-    db.session.commit()
-
-    return jsonify({"message": "Task created"})
-
-
-# 📊 Get Tasks
-@app.route('/tasks/<int:user_id>', methods=['GET'])
-def get_tasks(user_id):
-    tasks = Task.query.filter_by(assigned_to=user_id).all()
-
-    return jsonify([
-        {
-            "id": t.id,
-            "title": t.title,
-            "status": t.status
-        } for t in tasks
-    ])
-
-
-# ================= INIT =================
-
-with app.app_context():
-    db.create_all()
-
-# ================= RUN =================
-
+# ========================
+# RUN (for local only)
+# ========================
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True)
