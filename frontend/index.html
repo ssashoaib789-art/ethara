@@ -27,7 +27,7 @@
 
     h2 {
       text-align: center;
-      margin-bottom: 15px;
+      margin-bottom: 10px;
     }
 
     input, select {
@@ -49,10 +49,6 @@
       color: white;
       cursor: pointer;
       font-weight: 600;
-    }
-
-    button:hover {
-      opacity: 0.9;
     }
 
     #dashboard {
@@ -84,13 +80,13 @@
     .welcome {
       text-align:center;
       color:#00ffcc;
-      margin-top:10px;
+      margin-bottom:10px;
       font-weight:600;
     }
 
     .section-title {
-      margin-top: 15px;
-      font-weight: 600;
+      margin-top:15px;
+      font-weight:600;
     }
 
   </style>
@@ -133,9 +129,14 @@
 
     <div class="welcome" id="welcome"></div>
 
+    <!-- PROJECT -->
     <input id="projectName" placeholder="Project name">
     <button onclick="createProject()">Create Project</button>
 
+    <!-- SELECT PROJECT -->
+    <select id="projectSelect"></select>
+
+    <!-- TASK -->
     <input id="taskTitle" placeholder="Task title">
     <button onclick="createTask()">Create Task</button>
 
@@ -152,7 +153,7 @@
 
 const BASE_URL = "https://web-production-4c997.up.railway.app";
 
-// ---------- SIGNUP ----------
+// SIGNUP
 async function signup() {
   const res = await fetch(BASE_URL + "/register", {
     method: "POST",
@@ -166,11 +167,10 @@ async function signup() {
   });
 
   const data = await res.json();
-
   authMessage.innerHTML = `<div class="card">✅ ${data.message}</div>`;
 }
 
-// ---------- LOGIN ----------
+// LOGIN
 async function login() {
   const res = await fetch(BASE_URL + "/login", {
     method: "POST",
@@ -193,12 +193,28 @@ async function login() {
 
     welcome.innerText = "Welcome " + data.user.name + " (" + data.user.role + ")";
 
+    loadProjectOptions(); // 🔥 important
+
   } else {
     authMessage.innerHTML = `<div class="card">${data.message}</div>`;
   }
 }
 
-// ---------- CREATE PROJECT ----------
+// LOAD PROJECT OPTIONS (DROPDOWN)
+async function loadProjectOptions() {
+  const res = await fetch(BASE_URL + "/projects/" + localStorage.getItem("userId"));
+  const data = await res.json();
+
+  let options = "";
+
+  data.forEach(p => {
+    options += `<option value="${p.id}">${p.name}</option>`;
+  });
+
+  document.getElementById("projectSelect").innerHTML = options;
+}
+
+// CREATE PROJECT
 async function createProject() {
 
   if(localStorage.getItem("role") !== "Admin"){
@@ -216,9 +232,11 @@ async function createProject() {
   });
 
   output.innerHTML = `<div class="card">✅ Project created</div>`;
+
+  loadProjectOptions(); // refresh dropdown
 }
 
-// ---------- CREATE TASK ----------
+// CREATE TASK (USES SELECTED PROJECT)
 async function createTask() {
 
   await fetch(BASE_URL + "/tasks", {
@@ -226,7 +244,7 @@ async function createTask() {
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
       title: taskTitle.value,
-      project_id: 1,
+      project_id: document.getElementById("projectSelect").value,
       assigned_to: localStorage.getItem("userId")
     })
   });
@@ -234,7 +252,7 @@ async function createTask() {
   output.innerHTML = `<div class="card">✅ Task created</div>`;
 }
 
-// ---------- LOAD PROJECTS ----------
+// VIEW PROJECTS
 async function loadProjects() {
   const res = await fetch(BASE_URL + "/projects/" + localStorage.getItem("userId"));
   const data = await res.json();
@@ -248,7 +266,7 @@ async function loadProjects() {
   output.innerHTML = html;
 }
 
-// ---------- LOAD TASKS ----------
+// VIEW TASKS
 async function loadTasks() {
   const res = await fetch(BASE_URL + "/tasks/" + localStorage.getItem("userId"));
   const data = await res.json();
