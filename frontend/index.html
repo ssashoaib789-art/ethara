@@ -195,7 +195,7 @@ async function loadProjectOptions(){
 
 // CREATE PROJECT
 async function createProject(){
-  await fetch(BASE_URL+"/projects", {
+  const res = await fetch(BASE_URL+"/projects", {
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body: JSON.stringify({
@@ -204,20 +204,34 @@ async function createProject(){
     })
   });
 
-  loadProjectOptions();
-  output.innerHTML = "<div class='card'>✅ Project created</div>";
+  if(res.ok){
+    output.innerHTML = "<div class='card'>✅ Project created</div>";
+    loadProjectOptions();
+  } else {
+    output.innerHTML = "<div class='card'>❌ Failed to create project</div>";
+  }
 }
 
-// DELETE PROJECT (WITH CONFIRMATION)
+// DELETE PROJECT
 async function deleteProject(id){
   if(!confirm("Are you sure you want to delete this project?")) return;
 
-  await fetch(BASE_URL+"/projects/"+id, { method:"DELETE" });
+  try{
+    const res = await fetch(BASE_URL+"/projects/"+id, {
+      method:"DELETE"
+    });
 
-  loadProjects();
-  loadProjectOptions();
+    if(res.ok){
+      output.innerHTML = "<div class='card'>🗑️ Project deleted</div>";
+      loadProjects();
+      loadProjectOptions();
+    } else {
+      output.innerHTML = "<div class='card'>❌ Delete failed</div>";
+    }
 
-  output.innerHTML = "<div class='card'>🗑️ Project deleted</div>";
+  } catch(err){
+    output.innerHTML = "<div class='card'>⚠️ Server error</div>";
+  }
 }
 
 // LOAD PROJECTS
@@ -240,7 +254,7 @@ async function loadProjects(){
 
 // CREATE TASK
 async function createTask(){
-  await fetch(BASE_URL+"/tasks", {
+  const res = await fetch(BASE_URL+"/tasks", {
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body: JSON.stringify({
@@ -250,19 +264,33 @@ async function createTask(){
     })
   });
 
-  loadTasks();
-  output.innerHTML = "<div class='card'>✅ Task created</div>";
+  if(res.ok){
+    output.innerHTML = "<div class='card'>✅ Task created</div>";
+    loadTasks();
+  } else {
+    output.innerHTML = "<div class='card'>❌ Failed to create task</div>";
+  }
 }
 
-// DELETE TASK (WITH CONFIRMATION)
+// DELETE TASK
 async function deleteTask(id){
   if(!confirm("Are you sure you want to delete this task?")) return;
 
-  await fetch(BASE_URL+"/tasks/"+id, { method:"DELETE" });
+  try{
+    const res = await fetch(BASE_URL+"/tasks/"+id, {
+      method:"DELETE"
+    });
 
-  loadTasks();
+    if(res.ok){
+      output.innerHTML = "<div class='card'>🗑️ Task deleted</div>";
+      loadTasks();
+    } else {
+      output.innerHTML = "<div class='card'>❌ Delete failed</div>";
+    }
 
-  output.innerHTML = "<div class='card'>🗑️ Task deleted</div>";
+  } catch(err){
+    output.innerHTML = "<div class='card'>⚠️ Server error</div>";
+  }
 }
 
 // TOGGLE STATUS
