@@ -1,85 +1,81 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>TaskFlow</title>
-<style>
-body {
-  background: #0f0f1a;
-  color: white;
-  font-family: Arial;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-}
+  <title>TaskFlow</title>
+  <style>
+    body {
+      background: #0f0f1a;
+      color: white;
+      font-family: Arial;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
 
-.container {
-  width: 350px;
-  padding: 20px;
-  background: #1a1a2e;
-  border-radius: 10px;
-}
+    .container {
+      width: 300px;
+      background: #1a1a2e;
+      padding: 20px;
+      border-radius: 10px;
+    }
 
-input, select, button {
-  width: 100%;
-  margin: 10px 0;
-  padding: 10px;
-  border-radius: 5px;
-  border: none;
-}
+    input, select, button {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: none;
+      border-radius: 5px;
+    }
 
-button {
-  background: #6c63ff;
-  color: white;
-  cursor: pointer;
-}
+    button {
+      background: #6c63ff;
+      color: white;
+      cursor: pointer;
+    }
 
-.toggle {
-  display: flex;
-  justify-content: space-between;
-}
-
-.error {
-  color: red;
-}
-</style>
+    .toggle {
+      display: flex;
+      justify-content: space-between;
+    }
+  </style>
 </head>
 
 <body>
 
 <div class="container">
 
-<div class="toggle">
-  <button onclick="showLogin()">Login</button>
-  <button onclick="showSignup()">Sign Up</button>
-</div>
+  <div class="toggle">
+    <button onclick="showLogin()">Login</button>
+    <button onclick="showSignup()">Sign Up</button>
+  </div>
 
-<div id="loginForm">
-  <input type="email" id="loginEmail" placeholder="Email">
-  <input type="password" id="loginPassword" placeholder="Password">
-  <button onclick="login()">Login</button>
-</div>
+  <!-- LOGIN -->
+  <div id="loginForm">
+    <input type="email" id="loginEmail" placeholder="Email">
+    <input type="password" id="loginPassword" placeholder="Password">
+    <button onclick="login()">Login</button>
+  </div>
 
-<div id="signupForm" style="display:none;">
-  <input type="text" id="name" placeholder="Full Name">
-  <input type="email" id="email" placeholder="Email">
-  <input type="password" id="password" placeholder="Password">
-  <select id="role">
-    <option>Admin</option>
-    <option>Member</option>
-  </select>
-  <button onclick="signup()">Create Account</button>
-</div>
-
-<p class="error" id="errorMsg"></p>
+  <!-- SIGNUP -->
+  <div id="signupForm" style="display:none;">
+    <input type="text" id="name" placeholder="Full Name">
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+    <select id="role">
+      <option value="admin">Admin</option>
+      <option value="member">Member</option>
+    </select>
+    <button onclick="signup()">Create Account</button>
+  </div>
 
 </div>
 
 <script>
 
-const BASE_URL = "https://web-production-4c997.up.railway.app"; // 🔥 YOUR URL
+const BASE_URL = "https://web-production-4c997.up.railway.app";
 
+// Switch forms
 function showLogin() {
   document.getElementById("loginForm").style.display = "block";
   document.getElementById("signupForm").style.display = "none";
@@ -90,7 +86,7 @@ function showSignup() {
   document.getElementById("signupForm").style.display = "block";
 }
 
-// ✅ SIGNUP
+// ================== SIGNUP ==================
 async function signup() {
   const data = {
     name: document.getElementById("name").value,
@@ -100,7 +96,7 @@ async function signup() {
   };
 
   try {
-    const res = await fetch(`${BASE_URL}/register`, {
+    const res = await fetch(BASE_URL + "/register", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -109,13 +105,15 @@ async function signup() {
     });
 
     const result = await res.json();
-    document.getElementById("errorMsg").innerText = result.message || "Success!";
+    alert(result.message);
+
   } catch (err) {
-    document.getElementById("errorMsg").innerText = "Signup failed";
+    alert("Signup failed");
+    console.log(err);
   }
 }
 
-// ✅ LOGIN
+// ================== LOGIN ==================
 async function login() {
   const data = {
     email: document.getElementById("loginEmail").value,
@@ -123,7 +121,7 @@ async function login() {
   };
 
   try {
-    const res = await fetch(`${BASE_URL}/login`, {
+    const res = await fetch(BASE_URL + "/login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -132,15 +130,11 @@ async function login() {
     });
 
     const result = await res.json();
-
-    if (result.token) {
-      alert("Login successful!");
-    } else {
-      document.getElementById("errorMsg").innerText = result.message;
-    }
+    alert(result.message);
 
   } catch (err) {
-    document.getElementById("errorMsg").innerText = "Login failed";
+    alert("Login failed");
+    console.log(err);
   }
 }
 
