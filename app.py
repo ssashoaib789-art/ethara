@@ -172,3 +172,41 @@ def update_task(task_id):
 
 if __name__ == "__main__":
     app.run()
+# DELETE TASK
+@app.route("/tasks/<int:id>", methods=["DELETE"])
+def delete_task(id):
+    task = Task.query.get(id)
+    db.session.delete(task)
+    db.session.commit()
+    return jsonify({"message": "Task deleted"})
+
+# DELETE PROJECT
+# DELETE PROJECT
+@app.route("/projects/<int:id>", methods=["DELETE"])
+def delete_project(id):
+    project = Project.query.get(id)
+
+    if not project:
+        return jsonify({"message": "Project not found"}), 404
+
+    # delete related tasks first
+    Task.query.filter_by(project_id=id).delete()
+
+    db.session.delete(project)
+    db.session.commit()
+
+    return jsonify({"message": "Project deleted"})
+
+
+# DELETE TASK
+@app.route("/tasks/<int:id>", methods=["DELETE"])
+def delete_task(id):
+    task = Task.query.get(id)
+
+    if not task:
+        return jsonify({"message": "Task not found"}), 404
+
+    db.session.delete(task)
+    db.session.commit()
+
+    return jsonify({"message": "Task deleted"})
