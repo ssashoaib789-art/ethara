@@ -7,45 +7,35 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# =========================
-# DATABASE CONFIG (Railway)
-# =========================
-database_url = os.environ.get("DATABASE_URL")
+# DATABASE CONFIG
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-if database_url:
-    database_url = database_url.replace("postgres://", "postgresql://")
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///taskmanager.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 
-# =========================
 # MODEL
-# =========================
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100))
-    email = db.Column(db.String(120), unique=True)
+    email = db.Column(db.String(100), unique=True)
     password = db.Column(db.String(200))
     role = db.Column(db.String(50))
 
-# create tables
+# CREATE TABLE
 with app.app_context():
     db.create_all()
 
-# =========================
-# ROUTES
-# =========================
-
+# TEST ROUTE
 @app.route("/")
 def home():
     return "Backend is running 🚀"
 
-
-# =========================
 # REGISTER
-# =========================
 @app.route("/register", methods=["POST"])
 def register():
     try:
@@ -59,8 +49,8 @@ def register():
         if not name or not email or not password:
             return jsonify({"message": "Missing fields"}), 400
 
-        # check existing user
-        if User.query.filter_by(email=email).first():
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
             return jsonify({"message": "User already exists"}), 400
 
         hashed_pw = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
@@ -75,16 +65,12 @@ def register():
         db.session.add(user)
         db.session.commit()
 
-        return jsonify({"message": "User registered successfully"}), 201
+        return jsonify({"message": "User registered successfully"})
 
     except Exception as e:
-        print("ERROR:", str(e))
-        return jsonify({"message": "Server error"}), 500
+        return jsonify({"message": str(e)}), 500
 
-
-# =========================
 # LOGIN
-# =========================
 @app.route("/login", methods=["POST"])
 def login():
     try:
@@ -95,25 +81,25 @@ def login():
 
         user = User.query.filter_by(email=email).first()
 
-        if user and bcrypt.checkpw(password.encode("utf-8"), user.password.encode("utf-8")):
-            return jsonify({
-                "message": "Login successful",
-                "user": {
-                    "name": user.username,
-                    "email": user.email,
-                    "role": user.role
-                }
-            })
+        if not user:
+            return jsonify({"message": "User not found"}), 404
 
-        return jsonify({"message": "Invalid credentials"}), 401
+        if not bcrypt.checkpw(password.encode("utf-8"), user.password.encode("utf-8")):
+            return jsonify({"message": "Invalid password"}), 401
+
+        return jsonify({
+            "message": "Login successful",
+            "user": {
+                "name": user.username,
+                "email": user.email,
+                "role": user.role
+            }
+        })
 
     except Exception as e:
-        print("ERROR:", str(e))
-        return jsonify({"message": "Server error"}), 500
+        return jsonify({"message": str(e)}), 500
 
 
-# =========================
-# RUN
-# =========================
 if __name__ == "__main__":
-    app.run()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
