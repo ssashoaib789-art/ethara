@@ -7,13 +7,22 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# ✅ Use Railway Postgres automatically
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL")
+# =========================
+# DATABASE CONFIG (Railway)
+# =========================
+database_url = os.environ.get("DATABASE_URL")
+
+if database_url:
+    database_url = database_url.replace("postgres://", "postgresql://")
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///taskmanager.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# ✅ User model
+# =========================
+# MODEL
+# =========================
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100))
@@ -21,77 +30,90 @@ class User(db.Model):
     password = db.Column(db.String(200))
     role = db.Column(db.String(50))
 
-# ✅ Create tables (important)
+# create tables
 with app.app_context():
     db.create_all()
 
-
-# ========================
+# =========================
 # ROUTES
-# ========================
+# =========================
 
 @app.route("/")
 def home():
     return "Backend is running 🚀"
 
 
-# ✅ REGISTER
+# =========================
+# REGISTER
+# =========================
 @app.route("/register", methods=["POST"])
 def register():
-    data = request.get_json()
+    try:
+        data = request.get_json()
 
-    name = data.get("name")
-    email = data.get("email")
-    password = data.get("password")
-    role = data.get("role")
+        name = data.get("name")
+        email = data.get("email")
+        password = data.get("password")
+        role = data.get("role")
 
-    if not name or not email or not password:
-        return jsonify({"message": "Missing fields"}), 400
+        if not name or not email or not password:
+            return jsonify({"message": "Missing fields"}), 400
 
-    # check existing user
-    if User.query.filter_by(email=email).first():
-        return jsonify({"message": "User already exists"}), 400
+        # check existing user
+        if User.query.filter_by(email=email).first():
+            return jsonify({"message": "User already exists"}), 400
 
-    hashed_pw = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+        hashed_pw = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
 
-    user = User(
-        username=name,
-        email=email,
-        password=hashed_pw.decode("utf-8"),
-        role=role
-    )
+        user = User(
+            username=name,
+            email=email,
+            password=hashed_pw.decode("utf-8"),
+            role=role
+        )
 
-    db.session.add(user)
-    db.session.commit()
+        db.session.add(user)
+        db.session.commit()
 
-    return jsonify({"message": "User registered successfully"}), 201
+        return jsonify({"message": "User registered successfully"}), 201
+
+    except Exception as e:
+        print("ERROR:", str(e))
+        return jsonify({"message": "Server error"}), 500
 
 
-# ✅ LOGIN
+# =========================
+# LOGIN
+# =========================
 @app.route("/login", methods=["POST"])
 def login():
-    data = request.get_json()
+    try:
+        data = request.get_json()
 
-    email = data.get("email")
-    password = data.get("password")
+        email = data.get("email")
+        password = data.get("password")
 
-    user = User.query.filter_by(email=email).first()
+        user = User.query.filter_by(email=email).first()
 
-    if user and bcrypt.checkpw(password.encode("utf-8"), user.password.encode("utf-8")):
-        return jsonify({
-            "message": "Login successful",
-            "user": {
-                "name": user.username,
-                "email": user.email,
-                "role": user.role
-            }
-        })
+        if user and bcrypt.checkpw(password.encode("utf-8"), user.password.encode("utf-8")):
+            return jsonify({
+                "message": "Login successful",
+                "user": {
+                    "name": user.username,
+                    "email": user.email,
+                    "role": user.role
+                }
+            })
 
-    return jsonify({"message": "Invalid credentials"}), 401
+        return jsonify({"message": "Invalid credentials"}), 401
+
+    except Exception as e:
+        print("ERROR:", str(e))
+        return jsonify({"message": "Server error"}), 500
 
 
-# ========================
-# RUN (for local only)
-# ========================
+# =========================
+# RUN
+# =========================
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
