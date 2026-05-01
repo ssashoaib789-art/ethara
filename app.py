@@ -34,6 +34,10 @@ class User(db.Model):
     password = db.Column(db.String(200))
     role = db.Column(db.String(50))
 
+@app.before_request
+def create_tables():
+    db.create_all()
+
 
 # =========================
 # CREATE TABLE
