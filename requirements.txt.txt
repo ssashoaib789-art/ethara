@@ -1,0 +1,7 @@
+flask
+flask_sqlalchemy
+flask_cors
+bcrypt
+PyJWT
+gunicorn
+psycopg2-binary
