@@ -7,26 +7,22 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# =========================
-# DATABASE CONFIG (FINAL FIX)
-# =========================
+# DATABASE CONFIG
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if DATABASE_URL:
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-    # Fix SSL issue (Railway)
-    if "sslmode" not in DATABASE_URL:
-        DATABASE_URL += "?sslmode=require"
+if DATABASE_URL and "sslmode" not in DATABASE_URL:
+    DATABASE_URL += "?sslmode=require"
 
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 
-# =========================
-# MODEL
-# =========================
+# ================= MODELS =================
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100))
@@ -34,100 +30,145 @@ class User(db.Model):
     password = db.Column(db.String(200))
     role = db.Column(db.String(50))
 
-@app.before_request
-def create_tables():
-    db.create_all()
+
+class Project(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100))
+    owner_id = db.Column(db.Integer)
 
 
-# =========================
-# CREATE TABLE
-# =========================
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200))
+    status = db.Column(db.String(50), default="pending")
+    project_id = db.Column(db.Integer)
+    assigned_to = db.Column(db.Integer)
+
+
 with app.app_context():
     db.create_all()
 
-
-# =========================
-# ROUTES
-# =========================
+# ================= ROUTES =================
 
 @app.route("/")
 def home():
-    return "Backend is running 🚀"
+    return "Backend running 🚀"
 
+# -------- AUTH --------
 
-# =========================
-# REGISTER
-# =========================
 @app.route("/register", methods=["POST"])
 def register():
-    try:
-        data = request.get_json()
+    data = request.get_json()
 
-        name = data.get("name")
-        email = data.get("email")
-        password = data.get("password")
-        role = data.get("role")
+    name = data.get("name")
+    email = data.get("email")
+    password = data.get("password")
+    role = data.get("role")
 
-        if not name or not email or not password:
-            return jsonify({"message": "Missing fields"}), 400
+    if User.query.filter_by(email=email).first():
+        return jsonify({"message": "User already exists"}), 400
 
-        existing_user = User.query.filter_by(email=email).first()
-        if existing_user:
-            return jsonify({"message": "User already exists"}), 400
+    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
 
-        hashed_pw = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+    user = User(
+        username=name,
+        email=email,
+        password=hashed.decode(),
+        role=role
+    )
 
-        user = User(
-            username=name,
-            email=email,
-            password=hashed_pw.decode("utf-8"),
-            role=role
-        )
+    db.session.add(user)
+    db.session.commit()
 
-        db.session.add(user)
-        db.session.commit()
-
-        return jsonify({"message": "User registered successfully"})
-
-    except Exception as e:
-        return jsonify({"message": str(e)}), 500
+    return jsonify({"message": "User registered successfully"})
 
 
-# =========================
-# LOGIN
-# =========================
 @app.route("/login", methods=["POST"])
 def login():
-    try:
-        data = request.get_json()
+    data = request.get_json()
 
-        email = data.get("email")
-        password = data.get("password")
+    user = User.query.filter_by(email=data.get("email")).first()
 
-        user = User.query.filter_by(email=email).first()
-
-        if not user:
-            return jsonify({"message": "User not found"}), 404
-
-        if not bcrypt.checkpw(password.encode("utf-8"), user.password.encode("utf-8")):
-            return jsonify({"message": "Invalid password"}), 401
-
+    if user and bcrypt.checkpw(data.get("password").encode(), user.password.encode()):
         return jsonify({
             "message": "Login successful",
             "user": {
+                "id": user.id,
                 "name": user.username,
-                "email": user.email,
                 "role": user.role
             }
         })
 
-    except Exception as e:
-        return jsonify({"message": str(e)}), 500
+    return jsonify({"message": "Invalid credentials"}), 401
+
+# -------- PROJECTS --------
+
+@app.route("/projects", methods=["POST"])
+def create_project():
+    data = request.get_json()
+
+    project = Project(
+        name=data.get("name"),
+        owner_id=data.get("owner_id")
+    )
+
+    db.session.add(project)
+    db.session.commit()
+
+    return jsonify({"message": "Project created"})
 
 
-# =========================
-# RUN
-# =========================
+@app.route("/projects/<int:user_id>", methods=["GET"])
+def get_projects(user_id):
+    projects = Project.query.filter_by(owner_id=user_id).all()
+
+    return jsonify([
+        {"id": p.id, "name": p.name}
+        for p in projects
+    ])
+
+# -------- TASKS --------
+
+@app.route("/tasks", methods=["POST"])
+def create_task():
+    data = request.get_json()
+
+    task = Task(
+        title=data.get("title"),
+        project_id=data.get("project_id"),
+        assigned_to=data.get("assigned_to")
+    )
+
+    db.session.add(task)
+    db.session.commit()
+
+    return jsonify({"message": "Task created"})
+
+
+@app.route("/tasks/<int:user_id>", methods=["GET"])
+def get_tasks(user_id):
+    tasks = Task.query.filter_by(assigned_to=user_id).all()
+
+    return jsonify([
+        {
+            "id": t.id,
+            "title": t.title,
+            "status": t.status
+        } for t in tasks
+    ])
+
+
+@app.route("/tasks/update/<int:task_id>", methods=["PUT"])
+def update_task(task_id):
+    task = Task.query.get(task_id)
+
+    task.status = "completed"
+    db.session.commit()
+
+    return jsonify({"message": "Task updated"})
+
+
+# ================= RUN =================
+
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run()
