@@ -7,18 +7,26 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# DATABASE CONFIG
+# =========================
+# DATABASE CONFIG (FINAL FIX)
+# =========================
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+if DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
+
+    # Fix SSL issue (Railway)
+    if "sslmode" not in DATABASE_URL:
+        DATABASE_URL += "?sslmode=require"
 
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 
+# =========================
 # MODEL
+# =========================
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100))
@@ -26,16 +34,26 @@ class User(db.Model):
     password = db.Column(db.String(200))
     role = db.Column(db.String(50))
 
+
+# =========================
 # CREATE TABLE
+# =========================
 with app.app_context():
     db.create_all()
 
-# TEST ROUTE
+
+# =========================
+# ROUTES
+# =========================
+
 @app.route("/")
 def home():
     return "Backend is running 🚀"
 
+
+# =========================
 # REGISTER
+# =========================
 @app.route("/register", methods=["POST"])
 def register():
     try:
@@ -70,7 +88,10 @@ def register():
     except Exception as e:
         return jsonify({"message": str(e)}), 500
 
+
+# =========================
 # LOGIN
+# =========================
 @app.route("/login", methods=["POST"])
 def login():
     try:
@@ -100,6 +121,9 @@ def login():
         return jsonify({"message": str(e)}), 500
 
 
+# =========================
+# RUN
+# =========================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
