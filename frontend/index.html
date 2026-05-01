@@ -3,7 +3,6 @@
 <head>
   <title>TaskFlow</title>
 
-  <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 
   <style>
@@ -74,24 +73,40 @@
       display: none;
     }
 
-    .task-card {
-      background: #1f253d;
-      padding: 10px;
-      margin-top: 8px;
-      border-radius: 6px;
-    }
-
     #message {
       margin-top: 10px;
     }
 
-    .welcome {
-      text-align: center;
-      color: #00ffcc;
-      font-weight: 600;
-      margin-top: 10px;
+    .task-card {
+      background:#1f253d;
+      padding:12px;
+      margin-top:10px;
+      border-radius:8px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
     }
 
+    .status {
+      padding:4px 10px;
+      border-radius:5px;
+      font-size:12px;
+    }
+
+    .pending {
+      background:#ffab00;
+    }
+
+    .completed {
+      background:#00c853;
+    }
+
+    .welcome {
+      text-align:center;
+      color:#00ffcc;
+      font-weight:600;
+      margin-top:10px;
+    }
   </style>
 </head>
 
@@ -105,18 +120,16 @@
     <h2>TaskFlow</h2>
 
     <div class="tabs">
-      <button id="loginTab" class="active" onclick="showLogin()">Login</button>
-      <button id="signupTab" onclick="showSignup()">Sign Up</button>
+      <button class="active" onclick="showLogin()">Login</button>
+      <button onclick="showSignup()">Sign Up</button>
     </div>
 
-    <!-- LOGIN -->
     <div id="loginForm">
       <input type="email" id="loginEmail" placeholder="Email">
       <input type="password" id="loginPassword" placeholder="Password">
       <button onclick="login()">Login</button>
     </div>
 
-    <!-- SIGNUP -->
     <div id="signupForm" style="display:none;">
       <input type="text" id="name" placeholder="Full Name">
       <input type="email" id="email" placeholder="Email">
@@ -159,13 +172,13 @@ const BASE_URL = "https://web-production-4c997.up.railway.app";
 
 // SWITCH
 function showLogin() {
-  loginForm.style.display = "block";
-  signupForm.style.display = "none";
+  document.getElementById("loginForm").style.display = "block";
+  document.getElementById("signupForm").style.display = "none";
 }
 
 function showSignup() {
-  loginForm.style.display = "none";
-  signupForm.style.display = "block";
+  document.getElementById("loginForm").style.display = "none";
+  document.getElementById("signupForm").style.display = "block";
 }
 
 // SIGNUP
@@ -174,10 +187,10 @@ async function signup() {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
-      name: name.value,
-      email: email.value,
-      password: password.value,
-      role: role.value
+      name: document.getElementById("name").value,
+      email: document.getElementById("email").value,
+      password: document.getElementById("password").value,
+      role: document.getElementById("role").value
     })
   });
 
@@ -191,8 +204,8 @@ async function login() {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
-      email: loginEmail.value,
-      password: loginPassword.value
+      email: document.getElementById("loginEmail").value,
+      password: document.getElementById("loginPassword").value
     })
   });
 
@@ -202,10 +215,11 @@ async function login() {
 
     localStorage.setItem("userId", data.user.id);
 
-    auth.style.display = "none";
-    dashboard.style.display = "block";
+    document.getElementById("auth").style.display = "none";
+    document.getElementById("dashboard").style.display = "block";
 
-    welcome.innerText = "Welcome " + data.user.name;
+    document.getElementById("welcome").innerText =
+      "Welcome " + data.user.name;
 
   } else {
     alert(data.message);
@@ -218,7 +232,7 @@ async function createProject() {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
-      name: projectName.value,
+      name: document.getElementById("projectName").value,
       owner_id: localStorage.getItem("userId")
     })
   });
@@ -232,7 +246,7 @@ async function createTask() {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
-      title: taskTitle.value,
+      title: document.getElementById("taskTitle").value,
       project_id: 1,
       assigned_to: localStorage.getItem("userId")
     })
@@ -241,7 +255,7 @@ async function createTask() {
   alert("Task created");
 }
 
-// LOAD TASKS (CARD UI)
+// LOAD TASKS (FINAL VERSION)
 async function loadTasks() {
   const res = await fetch(BASE_URL + "/tasks/" + localStorage.getItem("userId"));
   const data = await res.json();
@@ -251,13 +265,15 @@ async function loadTasks() {
   data.forEach(task => {
     output += `
       <div class="task-card">
-        <b>${task.title}</b><br>
-        Status: ${task.status}
+        <span>${task.title}</span>
+        <span class="status ${task.status === 'completed' ? 'completed' : 'pending'}">
+          ${task.status}
+        </span>
       </div>
     `;
   });
 
-  message.innerHTML = output;
+  document.getElementById("message").innerHTML = output;
 }
 
 </script>
