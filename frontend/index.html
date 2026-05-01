@@ -51,9 +51,7 @@
       font-weight: 600;
     }
 
-    #dashboard {
-      display: none;
-    }
+    #dashboard { display: none; }
 
     .card {
       background:#1f253d;
@@ -72,6 +70,7 @@
       padding:4px 10px;
       border-radius:5px;
       font-size:12px;
+      cursor:pointer;
     }
 
     .pending { background:#ffab00; }
@@ -88,7 +87,6 @@
       margin-top:15px;
       font-weight:600;
     }
-
   </style>
 </head>
 
@@ -128,6 +126,9 @@
     <h2>Dashboard</h2>
 
     <div class="welcome" id="welcome"></div>
+
+    <!-- STATS -->
+    <div id="stats"></div>
 
     <!-- PROJECT -->
     <input id="projectName" placeholder="Project name">
@@ -193,25 +194,25 @@ async function login() {
 
     welcome.innerText = "Welcome " + data.user.name + " (" + data.user.role + ")";
 
-    loadProjectOptions(); // 🔥 important
+    loadProjectOptions();
+    loadStats();
 
   } else {
     authMessage.innerHTML = `<div class="card">${data.message}</div>`;
   }
 }
 
-// LOAD PROJECT OPTIONS (DROPDOWN)
+// LOAD PROJECT OPTIONS
 async function loadProjectOptions() {
   const res = await fetch(BASE_URL + "/projects/" + localStorage.getItem("userId"));
   const data = await res.json();
 
   let options = "";
-
   data.forEach(p => {
     options += `<option value="${p.id}">${p.name}</option>`;
   });
 
-  document.getElementById("projectSelect").innerHTML = options;
+  projectSelect.innerHTML = options;
 }
 
 // CREATE PROJECT
@@ -232,11 +233,10 @@ async function createProject() {
   });
 
   output.innerHTML = `<div class="card">✅ Project created</div>`;
-
-  loadProjectOptions(); // refresh dropdown
+  loadProjectOptions();
 }
 
-// CREATE TASK (USES SELECTED PROJECT)
+// CREATE TASK
 async function createTask() {
 
   await fetch(BASE_URL + "/tasks", {
@@ -244,15 +244,17 @@ async function createTask() {
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
       title: taskTitle.value,
-      project_id: document.getElementById("projectSelect").value,
+      project_id: projectSelect.value,
       assigned_to: localStorage.getItem("userId")
     })
   });
 
   output.innerHTML = `<div class="card">✅ Task created</div>`;
+  loadTasks();
+  loadStats();
 }
 
-// VIEW PROJECTS
+// LOAD PROJECTS
 async function loadProjects() {
   const res = await fetch(BASE_URL + "/projects/" + localStorage.getItem("userId"));
   const data = await res.json();
@@ -266,18 +268,27 @@ async function loadProjects() {
   output.innerHTML = html;
 }
 
-// VIEW TASKS
+// LOAD TASKS (FILTERED BY PROJECT)
 async function loadTasks() {
+  const projectId = projectSelect.value;
+
   const res = await fetch(BASE_URL + "/tasks/" + localStorage.getItem("userId"));
   const data = await res.json();
 
+  const filtered = data.filter(t => t.project_id == projectId);
+
   let html = "<div class='section-title'>Tasks</div>";
 
-  data.forEach(task => {
+  if(filtered.length === 0){
+    html += `<div class="card">No tasks for this project</div>`;
+  }
+
+  filtered.forEach(task => {
     html += `
       <div class="card task-card">
         <span>${task.title}</span>
-        <span class="status ${task.status === 'completed' ? 'completed' : 'pending'}">
+        <span onclick="toggleStatus(${task.id})"
+              class="status ${task.status === 'completed' ? 'completed' : 'pending'}">
           ${task.status}
         </span>
       </div>
@@ -285,6 +296,32 @@ async function loadTasks() {
   });
 
   output.innerHTML = html;
+}
+
+// TOGGLE STATUS
+async function toggleStatus(id) {
+  await fetch(BASE_URL + "/tasks/" + id + "/status", {
+    method: "PUT"
+  });
+
+  loadTasks();
+  loadStats();
+}
+
+// DASHBOARD STATS
+async function loadStats() {
+  const res = await fetch(BASE_URL + "/tasks/" + localStorage.getItem("userId"));
+  const data = await res.json();
+
+  const total = data.length;
+  const completed = data.filter(t => t.status === "completed").length;
+  const pending = total - completed;
+
+  stats.innerHTML = `
+    <div class="card">📊 Total Tasks: ${total}</div>
+    <div class="card">✅ Completed: ${completed}</div>
+    <div class="card">⏳ Pending: ${pending}</div>
+  `;
 }
 
 </script>
