@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>TaskFlow</title>
+  <title>Team Task Manager</title>
   <style>
     body {
       font-family: Arial;
@@ -15,31 +15,27 @@
 
     .box {
       background: #141a2a;
-      padding: 30px;
+      padding: 25px;
       border-radius: 10px;
-      width: 300px;
+      width: 350px;
     }
 
-    input, select {
+    input, select, button {
       width: 100%;
       padding: 10px;
-      margin: 10px 0;
+      margin: 8px 0;
       border-radius: 5px;
       border: none;
     }
 
     button {
-      width: 100%;
-      padding: 10px;
       background: purple;
       color: white;
-      border: none;
       cursor: pointer;
     }
 
     .tabs {
       display: flex;
-      margin-bottom: 10px;
     }
 
     .tabs button {
@@ -51,44 +47,61 @@
       background: purple;
     }
 
+    #dashboard {
+      display: none;
+    }
+
     #message {
-      margin-top: 15px;
+      margin-top: 10px;
       color: yellow;
-      text-align: center;
+      white-space: pre-wrap;
     }
   </style>
 </head>
+
 <body>
 
 <div class="box">
 
-  <div class="tabs">
-    <button id="loginTab" class="active" onclick="showLogin()">Login</button>
-    <button id="signupTab" onclick="showSignup()">Sign Up</button>
+  <!-- LOGIN / SIGNUP -->
+  <div id="auth">
+
+    <div class="tabs">
+      <button id="loginTab" class="active" onclick="showLogin()">Login</button>
+      <button id="signupTab" onclick="showSignup()">Sign Up</button>
+    </div>
+
+    <div id="loginForm">
+      <input type="email" id="loginEmail" placeholder="Email">
+      <input type="password" id="loginPassword" placeholder="Password">
+      <button onclick="login()">Login</button>
+    </div>
+
+    <div id="signupForm" style="display:none;">
+      <input type="text" id="name" placeholder="Full Name">
+      <input type="email" id="email" placeholder="Email">
+      <input type="password" id="password" placeholder="Password">
+
+      <select id="role">
+        <option value="Admin">Admin</option>
+        <option value="Member">Member</option>
+      </select>
+
+      <button onclick="signup()">Create Account</button>
+    </div>
+
   </div>
 
-  <!-- LOGIN -->
-  <div id="loginForm">
-    <input type="email" id="loginEmail" placeholder="Email">
-    <input type="password" id="loginPassword" placeholder="Password">
-    <button onclick="login()">Login</button>
+  <!-- DASHBOARD -->
+  <div id="dashboard">
+    <h3>Dashboard</h3>
+
+    <button onclick="createProject()">Create Project</button>
+    <button onclick="createTask()">Create Task</button>
+    <button onclick="loadTasks()">View Tasks</button>
+
+    <div id="message"></div>
   </div>
-
-  <!-- SIGNUP -->
-  <div id="signupForm" style="display:none;">
-    <input type="text" id="name" placeholder="Full Name">
-    <input type="email" id="email" placeholder="Email">
-    <input type="password" id="password" placeholder="Password">
-
-    <select id="role">
-      <option value="Admin">Admin</option>
-      <option value="User">User</option>
-    </select>
-
-    <button onclick="signup()">Create Account</button>
-  </div>
-
-  <div id="message"></div>
 
 </div>
 
@@ -96,78 +109,110 @@
 
 const BASE_URL = "https://web-production-4c997.up.railway.app";
 
-// SWITCH FORMS
+// ---------- UI SWITCH ----------
 function showLogin() {
   document.getElementById("loginForm").style.display = "block";
   document.getElementById("signupForm").style.display = "none";
-  document.getElementById("loginTab").classList.add("active");
-  document.getElementById("signupTab").classList.remove("active");
 }
 
 function showSignup() {
   document.getElementById("loginForm").style.display = "none";
   document.getElementById("signupForm").style.display = "block";
-  document.getElementById("signupTab").classList.add("active");
-  document.getElementById("loginTab").classList.remove("active");
 }
 
-// SIGNUP
+// ---------- SIGNUP ----------
 async function signup() {
-  const name = document.getElementById("name").value;
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-  const role = document.getElementById("role").value;
+  const res = await fetch(BASE_URL + "/register", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      name: document.getElementById("name").value,
+      email: document.getElementById("email").value,
+      password: document.getElementById("password").value,
+      role: document.getElementById("role").value
+    })
+  });
 
-  try {
-    const res = await fetch(BASE_URL + "/register", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        name: name,
-        email: email,
-        password: password,
-        role: role
-      })
-    });
+  const data = await res.json();
+  alert(data.message);
+}
 
-    const data = await res.json();
-    document.getElementById("message").innerText = data.message;
+// ---------- LOGIN ----------
+async function login() {
+  const res = await fetch(BASE_URL + "/login", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      email: document.getElementById("loginEmail").value,
+      password: document.getElementById("loginPassword").value
+    })
+  });
 
-  } catch (error) {
-    document.getElementById("message").innerText = "Error connecting to server";
+  const data = await res.json();
+
+  if (data.message === "Login successful") {
+
+    // STORE USER
+    localStorage.setItem("userId", data.user.id);
+    localStorage.setItem("role", data.user.role);
+
+    // SWITCH UI
+    document.getElementById("auth").style.display = "none";
+    document.getElementById("dashboard").style.display = "block";
+
+    document.getElementById("message").innerText =
+      "Welcome " + data.user.name;
+
+  } else {
+    alert(data.message);
   }
 }
 
-// LOGIN
-async function login() {
-  const email = document.getElementById("loginEmail").value;
-  const password = document.getElementById("loginPassword").value;
+// ---------- PROJECT ----------
+async function createProject() {
+  const name = prompt("Enter project name");
 
-  try {
-    const res = await fetch(BASE_URL + "/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        email: email,
-        password: password
-      })
-    });
+  await fetch(BASE_URL + "/projects", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      name: name,
+      owner_id: localStorage.getItem("userId")
+    })
+  });
 
-    const data = await res.json();
+  alert("Project created");
+}
 
-    if (data.message === "Login successful") {
-      document.getElementById("message").innerText = "Welcome " + data.user.name;
-    } else {
-      document.getElementById("message").innerText = data.message;
-    }
+// ---------- TASK ----------
+async function createTask() {
+  const title = prompt("Enter task");
 
-  } catch (error) {
-    document.getElementById("message").innerText = "Error connecting to server";
-  }
+  await fetch(BASE_URL + "/tasks", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      title: title,
+      project_id: 1,
+      assigned_to: localStorage.getItem("userId")
+    })
+  });
+
+  alert("Task created");
+}
+
+// ---------- LOAD TASKS ----------
+async function loadTasks() {
+  const res = await fetch(BASE_URL + "/tasks/" + localStorage.getItem("userId"));
+  const data = await res.json();
+
+  let output = "Your Tasks:\n\n";
+
+  data.forEach(task => {
+    output += task.title + " (" + task.status + ")\n";
+  });
+
+  document.getElementById("message").innerText = output;
 }
 
 </script>
