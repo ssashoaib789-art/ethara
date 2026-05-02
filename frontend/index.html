@@ -1,58 +1,156 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>TaskFlow</title>
-  <style>
-    body {font-family: Arial;background:#0b1220;color:white;display:flex;justify-content:center;}
-    .box {width:420px;margin-top:30px;background:#1c2338;padding:20px;border-radius:10px;}
-    input,select,button {width:100%;margin:6px 0;padding:10px;border-radius:5px;border:none;}
-    button {background:linear-gradient(90deg,#7b2ff7,#f107a3);color:white;}
-    .card {background:#2a3355;padding:10px;margin-top:10px;border-radius:5px;}
-  </style>
+<title>TaskFlow</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;600&display=swap" rel="stylesheet">
+
+<style>
+
+body {
+  font-family: 'Poppins', sans-serif;
+  background: linear-gradient(135deg,#0f172a,#1e293b);
+  color: white;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.container {
+  width: 480px;
+  margin-top: 30px;
+  background: #111827;
+  padding: 20px;
+  border-radius: 12px;
+}
+
+h2, h3 {
+  margin: 10px 0;
+}
+
+.section {
+  margin-top: 20px;
+  padding: 15px;
+  background: #1f2937;
+  border-radius: 10px;
+}
+
+input, select {
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  border-radius: 6px;
+  border: none;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 6px;
+  border: none;
+  background: linear-gradient(90deg,#7b2ff7,#f107a3);
+  color: white;
+  cursor: pointer;
+}
+
+.card {
+  background: #374151;
+  padding: 10px;
+  margin-top: 8px;
+  border-radius: 6px;
+}
+
+.stats {
+  display: flex;
+  justify-content: space-between;
+}
+
+.stat {
+  background: #374151;
+  padding: 10px;
+  border-radius: 6px;
+  width: 30%;
+  text-align: center;
+}
+
+.pending { background:#f59e0b; }
+.completed { background:#10b981; }
+
+.hidden { display:none; }
+
+</style>
 </head>
 
 <body>
-<div class="box">
 
+<div class="container">
+
+<!-- AUTH -->
 <div id="auth">
-<h2>Login</h2>
+<h2>TaskFlow</h2>
+
 <input id="loginEmail" placeholder="Email">
 <input id="loginPassword" type="password" placeholder="Password">
 <button onclick="login()">Login</button>
 
-<h3>Signup</h3>
+<hr>
+
 <input id="name" placeholder="Name">
 <input id="email" placeholder="Email">
 <input id="password" type="password" placeholder="Password">
+
 <select id="role">
 <option>Admin</option>
 <option>Member</option>
 </select>
+
 <button onclick="signup()">Signup</button>
 </div>
 
-<div id="app" style="display:none">
+<!-- DASHBOARD -->
+<div id="dashboard" class="hidden">
 
 <h3 id="welcome"></h3>
 
-<input id="projectName" placeholder="Project name">
+<div class="section stats" id="stats"></div>
+
+<!-- PROJECT -->
+<div class="section">
+<h3>Projects</h3>
+
+<input id="projectName" placeholder="New Project">
 <button onclick="createProject()">Create Project</button>
 
 <select id="projectSelect" onchange="loadMembers()"></select>
 
+<button onclick="loadProjects()">Refresh Projects</button>
+
+<div id="projectList"></div>
+</div>
+
+<!-- MEMBERS -->
+<div class="section" id="memberSection">
+<h3>Team Members</h3>
+
 <select id="memberSelect"></select>
 <button onclick="addMember()">Add Member</button>
+</div>
 
-<input id="taskTitle" placeholder="Task title">
+<!-- TASKS -->
+<div class="section">
+<h3>Tasks</h3>
+
+<input id="taskTitle" placeholder="Task Title">
 
 <select id="assignUser"></select>
 
 <button onclick="createTask()">Create Task</button>
 
-<button onclick="loadProjects()">View Projects</button>
-<button onclick="loadTasks()">View Tasks</button>
+<button onclick="loadTasks()">Refresh Tasks</button>
 
-<div id="output"></div>
+<div id="taskList"></div>
+</div>
 
 </div>
 
@@ -66,6 +164,7 @@ const BASE="https://web-production-4c997.up.railway.app";
 async function login(){
  let res=await fetch(BASE+"/login",{method:"POST",headers:{"Content-Type":"application/json"},
  body:JSON.stringify({email:loginEmail.value,password:loginPassword.value})});
+
  let d=await res.json();
 
  if(d.message==="Login successful"){
@@ -73,12 +172,18 @@ async function login(){
    localStorage.setItem("role",d.user.role);
 
    auth.style.display="none";
-   app.style.display="block";
+   dashboard.classList.remove("hidden");
 
    welcome.innerText="Welcome "+d.user.name+" ("+d.user.role+")";
 
+   if(d.user.role==="Member"){
+     memberSection.style.display="none";
+     projectName.style.display="none";
+   }
+
    loadProjects();
    loadUsers();
+   loadStats();
  }
 }
 
@@ -89,7 +194,7 @@ async function signup(){
  alert("Registered");
 }
 
-// LOAD ALL USERS
+// USERS
 async function loadUsers(){
  let res=await fetch(BASE+"/users");
  let data=await res.json();
@@ -97,56 +202,48 @@ async function loadUsers(){
  memberSelect.innerHTML=data.map(u=>`<option value=${u.id}>${u.name||("User-"+u.id)}</option>`);
 }
 
-// CREATE PROJECT
+// PROJECTS
 async function createProject(){
- let res=await fetch(BASE+"/projects",{method:"POST",headers:{"Content-Type":"application/json"},
+ await fetch(BASE+"/projects",{method:"POST",headers:{"Content-Type":"application/json"},
  body:JSON.stringify({name:projectName.value,owner_id:localStorage.getItem("uid")})});
 
- let d=await res.json();
- alert(d.message);
  loadProjects();
 }
 
-// LOAD PROJECTS
 async function loadProjects(){
  let res=await fetch(BASE+"/projects/"+localStorage.getItem("uid"));
  let data=await res.json();
 
  projectSelect.innerHTML=data.map(p=>`<option value=${p.id}>${p.name}</option>`);
 
- output.innerHTML=data.map(p=>`<div class="card">${p.name}</div>`).join("");
+ projectList.innerHTML=data.map(p=>`<div class="card">${p.name}</div>`).join("");
 
  loadMembers();
 }
 
-// ADD MEMBER
+// MEMBERS
 async function addMember(){
  let pid=projectSelect.value;
 
- let res=await fetch(BASE+"/projects/"+pid+"/members",{method:"POST",
+ await fetch(BASE+"/projects/"+pid+"/members",{method:"POST",
  headers:{"Content-Type":"application/json"},
  body:JSON.stringify({admin_id:localStorage.getItem("uid"),user_id:memberSelect.value})});
-
- let d=await res.json();
- alert(d.message);
 
  loadMembers();
 }
 
-// LOAD MEMBERS
 async function loadMembers(){
  let pid=projectSelect.value;
- if(!pid) return;
 
  let res=await fetch(BASE+"/projects/"+pid+"/members");
  let data=await res.json();
 
- assignUser.innerHTML=data.map(u=>`<option value=${u.id}>${u.name||("User-"+u.id)}</option>`);
+ assignUser.innerHTML=data.map(u=>`<option value=${u.id}>${u.name}</option>`);
 }
 
-// CREATE TASK
+// TASKS
 async function createTask(){
- let res=await fetch(BASE+"/tasks",{method:"POST",
+ await fetch(BASE+"/tasks",{method:"POST",
  headers:{"Content-Type":"application/json"},
  body:JSON.stringify({
    title:taskTitle.value,
@@ -154,21 +251,29 @@ async function createTask(){
    assigned_to:assignUser.value
  })});
 
- let d=await res.json();
- alert(d.message);
-
  loadTasks();
 }
 
-// LOAD TASKS
 async function loadTasks(){
  let res=await fetch(BASE+"/tasks/"+localStorage.getItem("uid"));
  let data=await res.json();
 
- output.innerHTML=data.map(t=>`
- <div class="card">
+ taskList.innerHTML=data.map(t=>`
+ <div class="card ${t.status}">
  ${t.title} - ${t.status}
  </div>`).join("");
+}
+
+// STATS
+async function loadStats(){
+ let res=await fetch(BASE+"/tasks/"+localStorage.getItem("uid"));
+ let data=await res.json();
+
+ stats.innerHTML=`
+ <div class="stat">Total ${data.length}</div>
+ <div class="stat">Done ${data.filter(t=>t.status=="completed").length}</div>
+ <div class="stat">Pending ${data.filter(t=>t.status=="pending").length}</div>
+ `;
 }
 
 </script>
