@@ -47,6 +47,7 @@ class Task(db.Model):
 def home():
     return "Backend is running 🚀"
 
+
 # REGISTER
 @app.route("/register", methods=["POST"])
 def register():
@@ -55,12 +56,12 @@ def register():
     if User.query.filter_by(email=data["email"]).first():
         return jsonify({"message": "User already exists"}), 400
 
-    hashed_pw = bcrypt.hashpw(data["password"].encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    hashed = bcrypt.hashpw(data["password"].encode(), bcrypt.gensalt()).decode()
 
     user = User(
         username=data["name"],
         email=data["email"],
-        password=hashed_pw,
+        password=hashed,
         role=data.get("role", "Member")
     )
 
@@ -69,16 +70,18 @@ def register():
 
     return jsonify({"message": "User registered successfully"})
 
+
 # LOGIN
 @app.route("/login", methods=["POST"])
 def login():
     data = request.json
+
     user = User.query.filter_by(email=data["email"]).first()
 
     if not user:
         return jsonify({"message": "User not found"}), 404
 
-    if bcrypt.checkpw(data["password"].encode("utf-8"), user.password.encode("utf-8")):
+    if bcrypt.checkpw(data["password"].encode(), user.password.encode()):
         return jsonify({
             "message": "Login successful",
             "user": {
@@ -90,26 +93,31 @@ def login():
 
     return jsonify({"message": "Invalid credentials"}), 401
 
+
 # USERS
 @app.route("/users")
 def users():
     users = User.query.all()
     return jsonify([{"id": u.id, "name": u.username} for u in users])
 
+
 # CREATE PROJECT (ADMIN ONLY)
 @app.route("/projects", methods=["POST"])
 def create_project():
     data = request.json
+
     user = User.query.get(data["owner_id"])
 
     if user.role != "Admin":
         return jsonify({"message": "Only Admin allowed"}), 403
 
     project = Project(name=data["name"], owner_id=data["owner_id"])
+
     db.session.add(project)
     db.session.commit()
 
     return jsonify({"message": "Project created"})
+
 
 # GET PROJECTS
 @app.route("/projects/<int:user_id>")
@@ -120,33 +128,37 @@ def get_projects(user_id):
         projects = Project.query.filter_by(owner_id=user_id).all()
     else:
         memberships = ProjectMember.query.filter_by(user_id=user_id).all()
-        project_ids = [m.project_id for m in memberships]
-        projects = Project.query.filter(Project.id.in_(project_ids)).all()
+        ids = [m.project_id for m in memberships]
+        projects = Project.query.filter(Project.id.in_(ids)).all()
 
     return jsonify([{"id": p.id, "name": p.name} for p in projects])
 
-# ADD MEMBER
-@app.route("/projects/<int:project_id>/members", methods=["POST"])
-def add_member(project_id):
+
+# ADD MEMBER (ADMIN)
+@app.route("/projects/<int:pid>/members", methods=["POST"])
+def add_member(pid):
     data = request.json
 
     admin = User.query.get(data["admin_id"])
+
     if admin.role != "Admin":
         return jsonify({"message": "Only Admin"}), 403
 
-    exists = ProjectMember.query.filter_by(project_id=project_id, user_id=data["user_id"]).first()
-    if exists:
+    existing = ProjectMember.query.filter_by(project_id=pid, user_id=data["user_id"]).first()
+
+    if existing:
         return jsonify({"message": "Already added"}), 400
 
-    db.session.add(ProjectMember(project_id=project_id, user_id=data["user_id"]))
+    db.session.add(ProjectMember(project_id=pid, user_id=data["user_id"]))
     db.session.commit()
 
     return jsonify({"message": "Member added"})
 
+
 # GET MEMBERS
-@app.route("/projects/<int:project_id>/members")
-def get_members(project_id):
-    members = ProjectMember.query.filter_by(project_id=project_id).all()
+@app.route("/projects/<int:pid>/members")
+def get_members(pid):
+    members = ProjectMember.query.filter_by(project_id=pid).all()
 
     result = []
     for m in members:
@@ -154,6 +166,7 @@ def get_members(project_id):
         result.append({"id": u.id, "name": u.username})
 
     return jsonify(result)
+
 
 # CREATE TASK
 @app.route("/tasks", methods=["POST"])
@@ -179,6 +192,7 @@ def create_task():
 
     return jsonify({"message": "Task created"})
 
+
 # GET TASKS
 @app.route("/tasks/<int:user_id>")
 def get_tasks(user_id):
@@ -193,13 +207,17 @@ def get_tasks(user_id):
         } for t in tasks
     ])
 
-# STATUS
+
+# TOGGLE STATUS
 @app.route("/tasks/<int:id>/status", methods=["PUT"])
 def status(id):
     t = Task.query.get(id)
+
     t.status = "completed" if t.status == "pending" else "pending"
     db.session.commit()
+
     return jsonify({"message": "Updated"})
+
 
 if __name__ == "__main__":
     app.run(debug=True)
