@@ -83,6 +83,7 @@
 
 <div class="container">
 
+<!-- AUTH -->
 <div id="auth">
   <h2>TaskFlow</h2>
 
@@ -106,17 +107,25 @@
   <div id="authMsg"></div>
 </div>
 
+<!-- DASHBOARD -->
 <div id="dashboard">
 
   <h3 class="welcome" id="welcome"></h3>
 
   <div id="stats"></div>
 
+  <!-- CREATE PROJECT -->
   <input id="projectName" placeholder="Project name">
   <button onclick="createProject()">Create Project</button>
 
-  <select id="projectSelect"></select>
+  <!-- SELECT PROJECT -->
+  <select id="projectSelect" onchange="loadProjectMembers()"></select>
 
+  <!-- ADD MEMBER -->
+  <select id="memberSelect"></select>
+  <button onclick="addMember()">Add Member to Project</button>
+
+  <!-- TASK -->
   <input id="taskTitle" placeholder="Task title">
 
   <select id="assignUser"></select>
@@ -158,7 +167,7 @@ async function login() {
     welcome.innerText="Welcome "+data.user.name+" ("+data.user.role+")";
 
     loadProjectOptions();
-    loadUsers();
+    loadAllUsers();
     loadStats();
 
   } else {
@@ -183,8 +192,8 @@ async function signup(){
   authMsg.innerText=data.message;
 }
 
-// USERS
-async function loadUsers(){
+// LOAD ALL USERS (FOR ADD MEMBER)
+async function loadAllUsers(){
   const res = await fetch(BASE_URL+"/users");
   const data = await res.json();
 
@@ -193,7 +202,7 @@ async function loadUsers(){
     html+=`<option value="${u.id}">${u.name}</option>`;
   });
 
-  assignUser.innerHTML=html;
+  memberSelect.innerHTML=html;
 }
 
 // PROJECT OPTIONS
@@ -207,6 +216,44 @@ async function loadProjectOptions(){
   });
 
   projectSelect.innerHTML=html;
+
+  loadProjectMembers();
+}
+
+// LOAD PROJECT MEMBERS (IMPORTANT)
+async function loadProjectMembers(){
+
+  const projectId = projectSelect.value;
+
+  const res = await fetch(BASE_URL+"/projects/"+projectId+"/members");
+  const data = await res.json();
+
+  let html="";
+  data.forEach(u=>{
+    html+=`<option value="${u.id}">${u.name}</option>`;
+  });
+
+  assignUser.innerHTML=html;
+}
+
+// ADD MEMBER
+async function addMember(){
+
+  const projectId = projectSelect.value;
+
+  const res = await fetch(BASE_URL+"/projects/"+projectId+"/members", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      admin_id: localStorage.getItem("userId"),
+      user_id: memberSelect.value
+    })
+  });
+
+  const data = await res.json();
+  output.innerHTML = `<div class='card'>${data.message}</div>`;
+
+  loadProjectMembers();
 }
 
 // CREATE PROJECT
@@ -227,29 +274,34 @@ async function createProject(){
   });
 
   const data=await res.json();
-
   output.innerHTML=`<div class='card'>${data.message}</div>`;
 
   loadProjectOptions();
 }
 
-// DELETE PROJECT (FIXED)
-async function deleteProject(id){
+// CREATE TASK
+async function createTask(){
 
-  if(!confirm("Delete this project?")) return;
+  if(taskTitle.value.trim()===""){
+    output.innerHTML="<div class='card'>❌ Enter task title</div>";
+    return;
+  }
 
-  const userId = localStorage.getItem("userId");
-
-  const res = await fetch(BASE_URL+"/projects/"+id+"?user_id="+userId,{
-    method:"DELETE"
+  const res = await fetch(BASE_URL+"/tasks",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      title:taskTitle.value,
+      project_id:projectSelect.value,
+      assigned_to:assignUser.value
+    })
   });
 
   const data = await res.json();
+  output.innerHTML = `<div class='card'>${data.message}</div>`;
 
-  output.innerHTML=`<div class='card'>${data.message}</div>`;
-
-  loadProjects();
-  loadProjectOptions();
+  loadTasks();
+  loadStats();
 }
 
 // LOAD PROJECTS
@@ -262,7 +314,6 @@ async function loadProjects(){
     html+=`
       <div class="card">
         ${p.name}
-        <span class="delete-btn" onclick="deleteProject(${p.id})">Delete</span>
       </div>
     `;
   });
@@ -270,50 +321,9 @@ async function loadProjects(){
   output.innerHTML=html;
 }
 
-// CREATE TASK
-async function createTask(){
-
-  if(taskTitle.value.trim()===""){
-    output.innerHTML="<div class='card'>❌ Enter task title</div>";
-    return;
-  }
-
-  await fetch(BASE_URL+"/tasks",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      title:taskTitle.value,
-      project_id:projectSelect.value,
-      assigned_to:assignUser.value
-    })
-  });
-
-  output.innerHTML="<div class='card'>✅ Task created</div>";
-
-  loadTasks();
-  loadStats();
-}
-
-// DELETE TASK
-async function deleteTask(id){
-  if(!confirm("Delete this task?")) return;
-
-  await fetch(BASE_URL+"/tasks/"+id,{
-    method:"DELETE"
-  });
-
-  loadTasks();
-}
-
-// TOGGLE STATUS
-async function toggleStatus(id){
-  await fetch(BASE_URL+"/tasks/"+id+"/status",{method:"PUT"});
-  loadTasks();
-  loadStats();
-}
-
 // LOAD TASKS
 async function loadTasks(){
+
   const projectId = projectSelect.value;
 
   const res=await fetch(BASE_URL+"/tasks/"+localStorage.getItem("userId"));
@@ -331,18 +341,22 @@ async function loadTasks(){
     html+=`
       <div class="card">
         ${t.title}
-        <span>
-          <span onclick="toggleStatus(${t.id})"
-            class="status ${t.status}">
-            ${t.status}
-          </span>
-          <span class="delete-btn" onclick="deleteTask(${t.id})">Delete</span>
+        <span onclick="toggleStatus(${t.id})"
+          class="status ${t.status}">
+          ${t.status}
         </span>
       </div>
     `;
   });
 
   output.innerHTML=html;
+}
+
+// TOGGLE STATUS
+async function toggleStatus(id){
+  await fetch(BASE_URL+"/tasks/"+id+"/status",{method:"PUT"});
+  loadTasks();
+  loadStats();
 }
 
 // STATS
