@@ -47,16 +47,6 @@
       padding:12px;
       margin-top:10px;
       border-radius:8px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-    }
-
-    .delete-btn {
-      background:red;
-      padding:5px 10px;
-      border-radius:5px;
-      cursor:pointer;
     }
 
     .status {
@@ -114,16 +104,15 @@
 
   <div id="stats"></div>
 
-  <!-- CREATE PROJECT -->
+  <!-- PROJECT -->
   <input id="projectName" placeholder="Project name">
   <button onclick="createProject()">Create Project</button>
 
-  <!-- SELECT PROJECT -->
-  <select id="projectSelect" onchange="loadProjectMembers()"></select>
+  <select id="projectSelect"></select>
 
   <!-- ADD MEMBER -->
   <select id="memberSelect"></select>
-  <button onclick="addMember()">Add Member to Project</button>
+  <button onclick="addMember()">Add Member</button>
 
   <!-- TASK -->
   <input id="taskTitle" placeholder="Task title">
@@ -160,6 +149,7 @@ async function login() {
 
   if(data.message === "Login successful"){
     localStorage.setItem("userId", data.user.id);
+    localStorage.setItem("role", data.user.role);
 
     auth.style.display="none";
     dashboard.style.display="block";
@@ -169,6 +159,7 @@ async function login() {
     loadProjectOptions();
     loadAllUsers();
     loadStats();
+    applyRoleControl();
 
   } else {
     authMsg.innerText=data.message;
@@ -192,14 +183,32 @@ async function signup(){
   authMsg.innerText=data.message;
 }
 
-// LOAD ALL USERS (FOR ADD MEMBER)
+// ROLE CONTROL
+function applyRoleControl(){
+  const role = localStorage.getItem("role");
+
+  if(role === "Member"){
+    projectName.style.display="none";
+    memberSelect.style.display="none";
+    assignUser.style.display="none";
+    taskTitle.style.display="none";
+
+    document.querySelectorAll("button").forEach(btn=>{
+      if(btn.innerText.includes("Create") || btn.innerText.includes("Add")){
+        btn.style.display="none";
+      }
+    });
+  }
+}
+
+// USERS
 async function loadAllUsers(){
   const res = await fetch(BASE_URL+"/users");
   const data = await res.json();
 
   let html="";
   data.forEach(u=>{
-    html+=`<option value="${u.id}">${u.name}</option>`;
+    html+=`<option value="${u.id}">${u.name || ("User-"+u.id)}</option>`;
   });
 
   memberSelect.innerHTML=html;
@@ -220,17 +229,19 @@ async function loadProjectOptions(){
   loadProjectMembers();
 }
 
-// LOAD PROJECT MEMBERS (IMPORTANT)
+// LOAD MEMBERS
 async function loadProjectMembers(){
 
   const projectId = projectSelect.value;
+
+  if(!projectId) return;
 
   const res = await fetch(BASE_URL+"/projects/"+projectId+"/members");
   const data = await res.json();
 
   let html="";
   data.forEach(u=>{
-    html+=`<option value="${u.id}">${u.name}</option>`;
+    html+=`<option value="${u.id}">${u.name || ("User-"+u.id)}</option>`;
   });
 
   assignUser.innerHTML=html;
@@ -260,7 +271,7 @@ async function addMember(){
 async function createProject(){
 
   if(projectName.value.trim()===""){
-    output.innerHTML="<div class='card'>❌ Enter project name</div>";
+    output.innerHTML="<div class='card'>Enter project name</div>";
     return;
   }
 
@@ -282,11 +293,6 @@ async function createProject(){
 // CREATE TASK
 async function createTask(){
 
-  if(taskTitle.value.trim()===""){
-    output.innerHTML="<div class='card'>❌ Enter task title</div>";
-    return;
-  }
-
   const res = await fetch(BASE_URL+"/tasks",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
@@ -302,23 +308,6 @@ async function createTask(){
 
   loadTasks();
   loadStats();
-}
-
-// LOAD PROJECTS
-async function loadProjects(){
-  const res=await fetch(BASE_URL+"/projects/"+localStorage.getItem("userId"));
-  const data=await res.json();
-
-  let html="";
-  data.forEach(p=>{
-    html+=`
-      <div class="card">
-        ${p.name}
-      </div>
-    `;
-  });
-
-  output.innerHTML=html;
 }
 
 // LOAD TASKS
@@ -352,7 +341,7 @@ async function loadTasks(){
   output.innerHTML=html;
 }
 
-// TOGGLE STATUS
+// STATUS
 async function toggleStatus(id){
   await fetch(BASE_URL+"/tasks/"+id+"/status",{method:"PUT"});
   loadTasks();
