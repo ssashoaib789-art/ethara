@@ -7,7 +7,6 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# DATABASE
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -29,6 +28,12 @@ class Project(db.Model):
     owner_id = db.Column(db.Integer)
 
 
+class ProjectMember(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer)
+    user_id = db.Column(db.Integer)
+
+
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200))
@@ -36,11 +41,13 @@ class Task(db.Model):
     assigned_to = db.Column(db.Integer)
     status = db.Column(db.String(20), default="pending")
 
+
 # ================= ROUTES =================
 
 @app.route("/")
 def home():
     return "Backend is running 🚀"
+
 
 # -------- REGISTER --------
 @app.route("/register", methods=["POST"])
@@ -97,7 +104,7 @@ def login():
     return jsonify({"message": "Invalid credentials"}), 401
 
 
-# -------- GET USERS (TEAM) --------
+# -------- GET USERS --------
 @app.route("/users", methods=["GET"])
 def get_users():
     users = User.query.all()
@@ -142,7 +149,54 @@ def get_projects(user_id):
     ])
 
 
-# -------- DELETE PROJECT (ADMIN ONLY) --------
+# -------- ADD MEMBER TO PROJECT --------
+@app.route("/projects/<int:project_id>/members", methods=["POST"])
+def add_member(project_id):
+    data = request.json
+
+    admin = User.query.get(data.get("admin_id"))
+
+    if admin.role != "Admin":
+        return jsonify({"message": "Only Admin can add members"}), 403
+
+    # avoid duplicate
+    existing = ProjectMember.query.filter_by(
+        project_id=project_id,
+        user_id=data.get("user_id")
+    ).first()
+
+    if existing:
+        return jsonify({"message": "User already added"}), 400
+
+    member = ProjectMember(
+        project_id=project_id,
+        user_id=data.get("user_id")
+    )
+
+    db.session.add(member)
+    db.session.commit()
+
+    return jsonify({"message": "Member added"})
+
+
+# -------- GET PROJECT MEMBERS --------
+@app.route("/projects/<int:project_id>/members", methods=["GET"])
+def get_project_members(project_id):
+
+    members = ProjectMember.query.filter_by(project_id=project_id).all()
+
+    result = []
+    for m in members:
+        user = User.query.get(m.user_id)
+        result.append({
+            "id": user.id,
+            "name": user.username
+        })
+
+    return jsonify(result)
+
+
+# -------- DELETE PROJECT --------
 @app.route("/projects/<int:id>", methods=["DELETE"])
 def delete_project(id):
     project = Project.query.get(id)
@@ -154,9 +208,10 @@ def delete_project(id):
     user = User.query.get(user_id)
 
     if user.role != "Admin":
-        return jsonify({"message": "Only Admin can delete project"}), 403
+        return jsonify({"message": "Only Admin can delete"}), 403
 
     Task.query.filter_by(project_id=id).delete()
+    ProjectMember.query.filter_by(project_id=id).delete()
 
     db.session.delete(project)
     db.session.commit()
@@ -164,13 +219,22 @@ def delete_project(id):
     return jsonify({"message": "Project deleted"})
 
 
-# -------- CREATE TASK --------
+# -------- CREATE TASK (VALIDATION INCLUDED) --------
 @app.route("/tasks", methods=["POST"])
 def create_task():
     data = request.json
 
     if not data.get("title"):
         return jsonify({"message": "Task title required"}), 400
+
+    # 🔥 IMPORTANT VALIDATION (YOUR QUESTION)
+    member = ProjectMember.query.filter_by(
+        project_id=data["project_id"],
+        user_id=data["assigned_to"]
+    ).first()
+
+    if not member:
+        return jsonify({"message": "User not part of project"}), 400
 
     task = Task(
         title=data["title"],
