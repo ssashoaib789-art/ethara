@@ -2,129 +2,57 @@
 <html>
 <head>
   <title>TaskFlow</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-
   <style>
-    body {
-      margin: 0;
-      font-family: 'Poppins', sans-serif;
-      background: linear-gradient(135deg,#0b0f1a,#1a1f35);
-      color: white;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-
-    .container {
-      width: 420px;
-      background: #141a2a;
-      padding: 25px;
-      border-radius: 12px;
-    }
-
-    input, select {
-      width: 100%;
-      padding: 10px;
-      margin: 8px 0;
-      border-radius: 6px;
-      border: none;
-    }
-
-    button {
-      width: 100%;
-      padding: 10px;
-      margin-top: 8px;
-      border-radius: 6px;
-      border: none;
-      background: linear-gradient(90deg,#7b2ff7,#f107a3);
-      color: white;
-      cursor: pointer;
-    }
-
-    .card {
-      background:#1f253d;
-      padding:12px;
-      margin-top:10px;
-      border-radius:8px;
-    }
-
-    .status {
-      padding:4px 10px;
-      border-radius:5px;
-      font-size:12px;
-      cursor:pointer;
-    }
-
-    .pending { background:#ffab00; }
-    .completed { background:#00c853; }
-
-    #dashboard { display:none; }
-
-    .welcome {
-      text-align:center;
-      margin-bottom:10px;
-      color:#00ffcc;
-    }
+    body {font-family: Arial;background:#0b1220;color:white;display:flex;justify-content:center;}
+    .box {width:420px;margin-top:30px;background:#1c2338;padding:20px;border-radius:10px;}
+    input,select,button {width:100%;margin:6px 0;padding:10px;border-radius:5px;border:none;}
+    button {background:linear-gradient(90deg,#7b2ff7,#f107a3);color:white;}
+    .card {background:#2a3355;padding:10px;margin-top:10px;border-radius:5px;}
   </style>
 </head>
 
 <body>
+<div class="box">
 
-<div class="container">
-
-<!-- AUTH -->
 <div id="auth">
-  <h2>TaskFlow</h2>
+<h2>Login</h2>
+<input id="loginEmail" placeholder="Email">
+<input id="loginPassword" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
 
-  <input id="loginEmail" placeholder="Email">
-  <input id="loginPassword" type="password" placeholder="Password">
-  <button onclick="login()">Login</button>
-
-  <hr>
-
-  <input id="name" placeholder="Name">
-  <input id="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Password">
-
-  <select id="role">
-    <option value="Admin">Admin</option>
-    <option value="Member">Member</option>
-  </select>
-
-  <button onclick="signup()">Signup</button>
-
-  <div id="authMsg"></div>
+<h3>Signup</h3>
+<input id="name" placeholder="Name">
+<input id="email" placeholder="Email">
+<input id="password" type="password" placeholder="Password">
+<select id="role">
+<option>Admin</option>
+<option>Member</option>
+</select>
+<button onclick="signup()">Signup</button>
 </div>
 
-<!-- DASHBOARD -->
-<div id="dashboard">
+<div id="app" style="display:none">
 
-  <h3 class="welcome" id="welcome"></h3>
+<h3 id="welcome"></h3>
 
-  <div id="stats"></div>
+<input id="projectName" placeholder="Project name">
+<button onclick="createProject()">Create Project</button>
 
-  <!-- PROJECT -->
-  <input id="projectName" placeholder="Project name">
-  <button onclick="createProject()">Create Project</button>
+<select id="projectSelect" onchange="loadMembers()"></select>
 
-  <select id="projectSelect"></select>
+<select id="memberSelect"></select>
+<button onclick="addMember()">Add Member</button>
 
-  <!-- ADD MEMBER -->
-  <select id="memberSelect"></select>
-  <button onclick="addMember()">Add Member</button>
+<input id="taskTitle" placeholder="Task title">
 
-  <!-- TASK -->
-  <input id="taskTitle" placeholder="Task title">
+<select id="assignUser"></select>
 
-  <select id="assignUser"></select>
+<button onclick="createTask()">Create Task</button>
 
-  <button onclick="createTask()">Create Task</button>
+<button onclick="loadProjects()">View Projects</button>
+<button onclick="loadTasks()">View Tasks</button>
 
-  <button onclick="loadProjects()">View Projects</button>
-  <button onclick="loadTasks()">View Tasks</button>
-
-  <div id="output"></div>
+<div id="output"></div>
 
 </div>
 
@@ -132,236 +60,115 @@
 
 <script>
 
-const BASE_URL = "https://web-production-4c997.up.railway.app";
+const BASE="https://web-production-4c997.up.railway.app";
 
 // LOGIN
-async function login() {
-  const res = await fetch(BASE_URL+"/login", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      email: loginEmail.value,
-      password: loginPassword.value
-    })
-  });
+async function login(){
+ let res=await fetch(BASE+"/login",{method:"POST",headers:{"Content-Type":"application/json"},
+ body:JSON.stringify({email:loginEmail.value,password:loginPassword.value})});
+ let d=await res.json();
 
-  const data = await res.json();
+ if(d.message==="Login successful"){
+   localStorage.setItem("uid",d.user.id);
+   localStorage.setItem("role",d.user.role);
 
-  if(data.message === "Login successful"){
-    localStorage.setItem("userId", data.user.id);
-    localStorage.setItem("role", data.user.role);
+   auth.style.display="none";
+   app.style.display="block";
 
-    auth.style.display="none";
-    dashboard.style.display="block";
+   welcome.innerText="Welcome "+d.user.name+" ("+d.user.role+")";
 
-    welcome.innerText="Welcome "+data.user.name+" ("+data.user.role+")";
-
-    loadProjectOptions();
-    loadAllUsers();
-    loadStats();
-    applyRoleControl();
-
-  } else {
-    authMsg.innerText=data.message;
-  }
+   loadProjects();
+   loadUsers();
+ }
 }
 
 // SIGNUP
 async function signup(){
-  const res = await fetch(BASE_URL+"/register",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      name:name.value,
-      email:email.value,
-      password:password.value,
-      role:role.value
-    })
-  });
-
-  const data=await res.json();
-  authMsg.innerText=data.message;
+ await fetch(BASE+"/register",{method:"POST",headers:{"Content-Type":"application/json"},
+ body:JSON.stringify({name:name.value,email:email.value,password:password.value,role:role.value})});
+ alert("Registered");
 }
 
-// ROLE CONTROL
-function applyRoleControl(){
-  const role = localStorage.getItem("role");
+// LOAD ALL USERS
+async function loadUsers(){
+ let res=await fetch(BASE+"/users");
+ let data=await res.json();
 
-  if(role === "Member"){
-    projectName.style.display="none";
-    memberSelect.style.display="none";
-    assignUser.style.display="none";
-    taskTitle.style.display="none";
-
-    document.querySelectorAll("button").forEach(btn=>{
-      if(btn.innerText.includes("Create") || btn.innerText.includes("Add")){
-        btn.style.display="none";
-      }
-    });
-  }
-}
-
-// USERS
-async function loadAllUsers(){
-  const res = await fetch(BASE_URL+"/users");
-  const data = await res.json();
-
-  let html="";
-  data.forEach(u=>{
-    html+=`<option value="${u.id}">${u.name || ("User-"+u.id)}</option>`;
-  });
-
-  memberSelect.innerHTML=html;
-}
-
-// PROJECT OPTIONS
-async function loadProjectOptions(){
-  const res=await fetch(BASE_URL+"/projects/"+localStorage.getItem("userId"));
-  const data=await res.json();
-
-  let html="";
-  data.forEach(p=>{
-    html+=`<option value="${p.id}">${p.name}</option>`;
-  });
-
-  projectSelect.innerHTML=html;
-
-  loadProjectMembers();
-}
-
-// LOAD MEMBERS
-async function loadProjectMembers(){
-
-  const projectId = projectSelect.value;
-
-  if(!projectId) return;
-
-  const res = await fetch(BASE_URL+"/projects/"+projectId+"/members");
-  const data = await res.json();
-
-  let html="";
-  data.forEach(u=>{
-    html+=`<option value="${u.id}">${u.name || ("User-"+u.id)}</option>`;
-  });
-
-  assignUser.innerHTML=html;
-}
-
-// ADD MEMBER
-async function addMember(){
-
-  const projectId = projectSelect.value;
-
-  const res = await fetch(BASE_URL+"/projects/"+projectId+"/members", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      admin_id: localStorage.getItem("userId"),
-      user_id: memberSelect.value
-    })
-  });
-
-  const data = await res.json();
-  output.innerHTML = `<div class='card'>${data.message}</div>`;
-
-  loadProjectMembers();
+ memberSelect.innerHTML=data.map(u=>`<option value=${u.id}>${u.name||("User-"+u.id)}</option>`);
 }
 
 // CREATE PROJECT
 async function createProject(){
+ let res=await fetch(BASE+"/projects",{method:"POST",headers:{"Content-Type":"application/json"},
+ body:JSON.stringify({name:projectName.value,owner_id:localStorage.getItem("uid")})});
 
-  if(projectName.value.trim()===""){
-    output.innerHTML="<div class='card'>Enter project name</div>";
-    return;
-  }
+ let d=await res.json();
+ alert(d.message);
+ loadProjects();
+}
 
-  const res=await fetch(BASE_URL+"/projects",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      name:projectName.value,
-      owner_id:localStorage.getItem("userId")
-    })
-  });
+// LOAD PROJECTS
+async function loadProjects(){
+ let res=await fetch(BASE+"/projects/"+localStorage.getItem("uid"));
+ let data=await res.json();
 
-  const data=await res.json();
-  output.innerHTML=`<div class='card'>${data.message}</div>`;
+ projectSelect.innerHTML=data.map(p=>`<option value=${p.id}>${p.name}</option>`);
 
-  loadProjectOptions();
+ output.innerHTML=data.map(p=>`<div class="card">${p.name}</div>`).join("");
+
+ loadMembers();
+}
+
+// ADD MEMBER
+async function addMember(){
+ let pid=projectSelect.value;
+
+ let res=await fetch(BASE+"/projects/"+pid+"/members",{method:"POST",
+ headers:{"Content-Type":"application/json"},
+ body:JSON.stringify({admin_id:localStorage.getItem("uid"),user_id:memberSelect.value})});
+
+ let d=await res.json();
+ alert(d.message);
+
+ loadMembers();
+}
+
+// LOAD MEMBERS
+async function loadMembers(){
+ let pid=projectSelect.value;
+ if(!pid) return;
+
+ let res=await fetch(BASE+"/projects/"+pid+"/members");
+ let data=await res.json();
+
+ assignUser.innerHTML=data.map(u=>`<option value=${u.id}>${u.name||("User-"+u.id)}</option>`);
 }
 
 // CREATE TASK
 async function createTask(){
+ let res=await fetch(BASE+"/tasks",{method:"POST",
+ headers:{"Content-Type":"application/json"},
+ body:JSON.stringify({
+   title:taskTitle.value,
+   project_id:projectSelect.value,
+   assigned_to:assignUser.value
+ })});
 
-  const res = await fetch(BASE_URL+"/tasks",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      title:taskTitle.value,
-      project_id:projectSelect.value,
-      assigned_to:assignUser.value
-    })
-  });
+ let d=await res.json();
+ alert(d.message);
 
-  const data = await res.json();
-  output.innerHTML = `<div class='card'>${data.message}</div>`;
-
-  loadTasks();
-  loadStats();
+ loadTasks();
 }
 
 // LOAD TASKS
 async function loadTasks(){
+ let res=await fetch(BASE+"/tasks/"+localStorage.getItem("uid"));
+ let data=await res.json();
 
-  const projectId = projectSelect.value;
-
-  const res=await fetch(BASE_URL+"/tasks/"+localStorage.getItem("userId"));
-  const data=await res.json();
-
-  const filtered=data.filter(t=>t.project_id==projectId);
-
-  let html="";
-
-  if(filtered.length===0){
-    html="<div class='card'>No tasks found</div>";
-  }
-
-  filtered.forEach(t=>{
-    html+=`
-      <div class="card">
-        ${t.title}
-        <span onclick="toggleStatus(${t.id})"
-          class="status ${t.status}">
-          ${t.status}
-        </span>
-      </div>
-    `;
-  });
-
-  output.innerHTML=html;
-}
-
-// STATUS
-async function toggleStatus(id){
-  await fetch(BASE_URL+"/tasks/"+id+"/status",{method:"PUT"});
-  loadTasks();
-  loadStats();
-}
-
-// STATS
-async function loadStats(){
-  const res=await fetch(BASE_URL+"/tasks/"+localStorage.getItem("userId"));
-  const data=await res.json();
-
-  const total=data.length;
-  const completed=data.filter(t=>t.status==="completed").length;
-  const pending=total-completed;
-
-  stats.innerHTML=`
-    <div class="card">Total: ${total}</div>
-    <div class="card">Completed: ${completed}</div>
-    <div class="card">Pending: ${pending}</div>
-  `;
+ output.innerHTML=data.map(t=>`
+ <div class="card">
+ ${t.title} - ${t.status}
+ </div>`).join("");
 }
 
 </script>
