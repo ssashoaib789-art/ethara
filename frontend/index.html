@@ -2,14 +2,13 @@
 <html>
 <head>
   <title>TaskFlow</title>
-
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 
   <style>
     body {
       margin: 0;
       font-family: 'Poppins', sans-serif;
-      background: linear-gradient(135deg, #0b0f1a, #1a1f35);
+      background: linear-gradient(135deg,#0b0f1a,#1a1f35);
       color: white;
       display: flex;
       justify-content: center;
@@ -38,7 +37,7 @@
       margin-top: 8px;
       border-radius: 6px;
       border: none;
-      background: linear-gradient(90deg, #7b2ff7, #f107a3);
+      background: linear-gradient(90deg,#7b2ff7,#f107a3);
       color: white;
       cursor: pointer;
     }
@@ -84,51 +83,52 @@
 
 <div class="container">
 
-  <!-- AUTH -->
-  <div id="auth">
+<div id="auth">
+  <h2>TaskFlow</h2>
 
-    <h2>TaskFlow</h2>
+  <input id="loginEmail" placeholder="Email">
+  <input id="loginPassword" type="password" placeholder="Password">
+  <button onclick="login()">Login</button>
 
-    <input id="loginEmail" placeholder="Email">
-    <input id="loginPassword" type="password" placeholder="Password">
-    <button onclick="login()">Login</button>
+  <hr>
 
-    <hr>
+  <input id="name" placeholder="Name">
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Password">
 
-    <input id="name" placeholder="Name">
-    <input id="email" placeholder="Email">
-    <input id="password" type="password" placeholder="Password">
+  <select id="role">
+    <option value="Admin">Admin</option>
+    <option value="Member">Member</option>
+  </select>
 
-    <select id="role">
-      <option value="Admin">Admin</option>
-      <option value="Member">Member</option>
-    </select>
+  <button onclick="signup()">Signup</button>
 
-    <button onclick="signup()">Signup</button>
+  <div id="authMsg"></div>
+</div>
 
-    <div id="authMsg"></div>
+<div id="dashboard">
 
-  </div>
+  <h3 class="welcome" id="welcome"></h3>
 
-  <!-- DASHBOARD -->
-  <div id="dashboard">
+  <div id="stats"></div>
 
-    <h3 class="welcome" id="welcome"></h3>
+  <input id="projectName" placeholder="Project name">
+  <button onclick="createProject()">Create Project</button>
 
-    <input id="projectName" placeholder="Project name">
-    <button onclick="createProject()">Create Project</button>
+  <select id="projectSelect"></select>
 
-    <select id="projectSelect"></select>
+  <input id="taskTitle" placeholder="Task title">
 
-    <input id="taskTitle" placeholder="Task title">
-    <button onclick="createTask()">Create Task</button>
+  <select id="assignUser"></select>
 
-    <button onclick="loadProjects()">View Projects</button>
-    <button onclick="loadTasks()">View Tasks</button>
+  <button onclick="createTask()">Create Task</button>
 
-    <div id="output"></div>
+  <button onclick="loadProjects()">View Projects</button>
+  <button onclick="loadTasks()">View Tasks</button>
 
-  </div>
+  <div id="output"></div>
+
+</div>
 
 </div>
 
@@ -155,81 +155,107 @@ async function login() {
     auth.style.display="none";
     dashboard.style.display="block";
 
-    welcome.innerText="Welcome " + data.user.name;
+    welcome.innerText="Welcome "+data.user.name+" ("+data.user.role+")";
 
     loadProjectOptions();
+    loadUsers();
+    loadStats();
+
   } else {
-    authMsg.innerText = data.message;
+    authMsg.innerText=data.message;
   }
 }
 
 // SIGNUP
-async function signup() {
-  const res = await fetch(BASE_URL+"/register", {
+async function signup(){
+  const res = await fetch(BASE_URL+"/register",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body: JSON.stringify({
-      name: name.value,
-      email: email.value,
-      password: password.value,
-      role: role.value
+      name:name.value,
+      email:email.value,
+      password:password.value,
+      role:role.value
     })
   });
 
-  const data = await res.json();
+  const data=await res.json();
   authMsg.innerText=data.message;
 }
 
-// LOAD PROJECT OPTIONS
-async function loadProjectOptions(){
-  const res = await fetch(BASE_URL+"/projects/"+localStorage.getItem("userId"));
+// USERS
+async function loadUsers(){
+  const res = await fetch(BASE_URL+"/users");
   const data = await res.json();
 
-  let options="";
-  data.forEach(p=>{
-    options+=`<option value="${p.id}">${p.name}</option>`;
+  let html="";
+  data.forEach(u=>{
+    html+=`<option value="${u.id}">${u.name}</option>`;
   });
 
-  projectSelect.innerHTML=options;
+  assignUser.innerHTML=html;
+}
+
+// PROJECT OPTIONS
+async function loadProjectOptions(){
+  const res=await fetch(BASE_URL+"/projects/"+localStorage.getItem("userId"));
+  const data=await res.json();
+
+  let html="";
+  data.forEach(p=>{
+    html+=`<option value="${p.id}">${p.name}</option>`;
+  });
+
+  projectSelect.innerHTML=html;
 }
 
 // CREATE PROJECT
 async function createProject(){
-  const res = await fetch(BASE_URL+"/projects", {
+
+  if(projectName.value.trim()===""){
+    output.innerHTML="<div class='card'>❌ Enter project name</div>";
+    return;
+  }
+
+  const res=await fetch(BASE_URL+"/projects",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body: JSON.stringify({
-      name: projectName.value,
-      owner_id: localStorage.getItem("userId")
+      name:projectName.value,
+      owner_id:localStorage.getItem("userId")
     })
   });
 
-  if(res.ok){
-    output.innerHTML = "<div class='card'>✅ Project created</div>";
-    loadProjectOptions();
-  } else {
-    output.innerHTML = "<div class='card'>❌ Failed</div>";
-  }
+  const data=await res.json();
+
+  output.innerHTML=`<div class='card'>${data.message}</div>`;
+
+  loadProjectOptions();
 }
 
-// DELETE PROJECT
+// DELETE PROJECT (FIXED)
 async function deleteProject(id){
+
   if(!confirm("Delete this project?")) return;
 
-  const res = await fetch(BASE_URL+"/projects/"+id, {
+  const userId = localStorage.getItem("userId");
+
+  const res = await fetch(BASE_URL+"/projects/"+id+"?user_id="+userId,{
     method:"DELETE"
   });
 
-  if(res.ok){
-    loadProjects();
-    loadProjectOptions();
-  }
+  const data = await res.json();
+
+  output.innerHTML=`<div class='card'>${data.message}</div>`;
+
+  loadProjects();
+  loadProjectOptions();
 }
 
 // LOAD PROJECTS
 async function loadProjects(){
-  const res = await fetch(BASE_URL+"/projects/"+localStorage.getItem("userId"));
-  const data = await res.json();
+  const res=await fetch(BASE_URL+"/projects/"+localStorage.getItem("userId"));
+  const data=await res.json();
 
   let html="";
   data.forEach(p=>{
@@ -246,24 +272,33 @@ async function loadProjects(){
 
 // CREATE TASK
 async function createTask(){
-  await fetch(BASE_URL+"/tasks", {
+
+  if(taskTitle.value.trim()===""){
+    output.innerHTML="<div class='card'>❌ Enter task title</div>";
+    return;
+  }
+
+  await fetch(BASE_URL+"/tasks",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body: JSON.stringify({
-      title: taskTitle.value,
-      project_id: projectSelect.value,
-      assigned_to: localStorage.getItem("userId")
+      title:taskTitle.value,
+      project_id:projectSelect.value,
+      assigned_to:assignUser.value
     })
   });
 
+  output.innerHTML="<div class='card'>✅ Task created</div>";
+
   loadTasks();
+  loadStats();
 }
 
 // DELETE TASK
 async function deleteTask(id){
   if(!confirm("Delete this task?")) return;
 
-  await fetch(BASE_URL+"/tasks/"+id, {
+  await fetch(BASE_URL+"/tasks/"+id,{
     method:"DELETE"
   });
 
@@ -272,30 +307,33 @@ async function deleteTask(id){
 
 // TOGGLE STATUS
 async function toggleStatus(id){
-  await fetch(BASE_URL+"/tasks/"+id+"/status", {
-    method:"PUT"
-  });
-
+  await fetch(BASE_URL+"/tasks/"+id+"/status",{method:"PUT"});
   loadTasks();
+  loadStats();
 }
 
 // LOAD TASKS
 async function loadTasks(){
   const projectId = projectSelect.value;
 
-  const res = await fetch(BASE_URL+"/tasks/"+localStorage.getItem("userId"));
-  const data = await res.json();
+  const res=await fetch(BASE_URL+"/tasks/"+localStorage.getItem("userId"));
+  const data=await res.json();
 
-  const filtered = data.filter(t => t.project_id == projectId);
+  const filtered=data.filter(t=>t.project_id==projectId);
 
   let html="";
+
+  if(filtered.length===0){
+    html="<div class='card'>No tasks found</div>";
+  }
 
   filtered.forEach(t=>{
     html+=`
       <div class="card">
         ${t.title}
         <span>
-          <span onclick="toggleStatus(${t.id})" class="status ${t.status}">
+          <span onclick="toggleStatus(${t.id})"
+            class="status ${t.status}">
             ${t.status}
           </span>
           <span class="delete-btn" onclick="deleteTask(${t.id})">Delete</span>
@@ -305,6 +343,22 @@ async function loadTasks(){
   });
 
   output.innerHTML=html;
+}
+
+// STATS
+async function loadStats(){
+  const res=await fetch(BASE_URL+"/tasks/"+localStorage.getItem("userId"));
+  const data=await res.json();
+
+  const total=data.length;
+  const completed=data.filter(t=>t.status==="completed").length;
+  const pending=total-completed;
+
+  stats.innerHTML=`
+    <div class="card">Total: ${total}</div>
+    <div class="card">Completed: ${completed}</div>
+    <div class="card">Pending: ${pending}</div>
+  `;
 }
 
 </script>
